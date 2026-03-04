@@ -1,0 +1,64 @@
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0A0E17; 
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.bg-grid {
+    background-image:
+        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.text-shadow-neon {
+    text-shadow: 0 0 5px #00FFFF, 0 0 10px #00FFFF;
+}
+
+.border-glow {
+    box-shadow: 0 0 5px #00FFFF, 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.glass-neon {
+    background: rgba(18, 25, 44, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.scan-line {
+    background: linear-gradient(90deg, rgba(57, 255, 20, 0.1), rgba(57, 255, 20, 0.5), rgba(57, 255, 20, 0.1));
+    height: 2px;
+    width: 100%;
+    position: absolute;
+    left: 0;
+    animation: scan 3s linear infinite;
+}
+
+@keyframes glow {
+    0% { box-shadow: 0 0 5px #00FFFF, 0 0 10px #00FFFF; }
+    100% { box-shadow: 0 0 10px #00FFFF, 0 0 20px #00FFFF, 0 0 30px #00FFFF; }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+}
+
+@keyframes scan {
+    0%   { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+}
+
+.neon-blue  { color: #00FFFF; }
+.neon-purple{ color: #9D00FF; }
+.neon-pink  { color: #FF00FF; }
+.neon-green { color: #39FF14; }
+.neon-red   { color: #FF3131; }
+
+button:hover {
+    border-color: #00FFFF;
+    transition: all 0.3s ease;
+}

@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metris LSTM 预测 - 测试阶段</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            neonBlue: '#00FFFF',    // 霓虹蓝（主色）
+            neonPurple: '#9D00FF',  // 霓虹紫
+            neonPink: '#FF00FF',    // 霓虹粉
+            neonGreen: '#39FF14',   // 霓虹绿（拟合值）
+            neonRed: '#FF3131',     // 霓虹红（实际值）
+            neonYellow: '#FFFF00',  // 霓虹黄（未来预测）
+            darkBg: '#0A0E17',      // 深色背景
+            darkCard: '#12192C',    // 卡片背景
+            darkBorder: '#2D3748',  // 边框色
+          },
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            orbitron: ['Orbitron', 'sans-serif'], // 科技感字体
+          },
+          animation: {
+            'pulse-neon': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'glow': 'glow 2s ease-in-out infinite alternate',
+            'float': 'float 6s ease-in-out infinite',
+            'scan': 'scan 3s linear infinite',
+          },
+          keyframes: {
+            glow: {
+              '0%': { boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF' },
+              '100%': { boxShadow: '0 0 10px #00FFFF, 0 0 20px #00FFFF, 0 0 30px #00FFFF' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            scan: {
+              '0%': { transform: 'translateY(-100%)' },
+              '100%': { transform: 'translateY(100%)' },
+            }
+          }
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .text-shadow-neon {
+        text-shadow: 0 0 5px #00FFFF, 0 0 10px #00FFFF;
+      }
+      .border-glow {
+        box-shadow: 0 0 5px #00FFFF, 0 0 10px rgba(0, 255, 255, 0.3);
+      }
+      .bg-grid {
+        background-image: 
+          linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      .scan-line {
+        background: linear-gradient(90deg, rgba(57, 255, 20, 0.1), rgba(57, 255, 20, 0.5), rgba(57, 255, 20, 0.1));
+        height: 2px;
+        width: 100%;
+        position: absolute;
+        left: 0;
+        animation: scan 3s linear infinite;
+      }
+      .glass-neon {
+        background: rgba(18, 25, 44, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+      }
+      /* 预测区域高亮样式 */
+      .forecast-highlight {
+        background: rgba(255, 255, 0, 0.05);
+        border-left: 1px solid rgba(255, 255, 0, 0.5);
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-darkBg text-white min-h-screen overflow-x-hidden bg-grid">
+  <div id="particles-js" class="fixed inset-0 z-0 opacity-30"></div>
+  
+  <!-- 顶部导航栏 -->
+  <header class="glass-neon sticky top-0 z-50 border-b border-neonBlue/30">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-darkCard flex items-center justify-center border border-neonBlue animate-glow">
+          <i class="fa fa-brain text-neonBlue text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-orbitron font-bold text-neonBlue text-shadow-neon">Metris-LSTM</h1>
+          <p class="text-xs text-neonBlue/70 -mt-1">6-Parameter Predictive Model v4.0</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-6">
+        <!-- 系统状态 -->
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-full bg-neonGreen animate-pulse-neon"></div>
+          <span class="text-sm font-orbitron text-neonGreen">MODEL ACTIVE</span>
+        </div>
+        
+        <!-- 数据更新状态 -->
+        <div class="flex items-center gap-2">
+          <i class="fa fa-refresh text-neonBlue animate-spin"></i>
+          <span class="text-sm font-orbitron">UPDATE: <span id="update-interval">2</span>S</span>
+        </div>
+        
+        <!-- 时间戳 -->
+        <div class="flex items-center gap-2">
+          <i class="fa fa-clock-o text-neonBlue"></i>
+          <span class="text-sm font-orbitron" id="current-time">2025-11-25 15:42:36</span>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="flex gap-3">
+          <button class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonBlue animate-glow transition flex items-center gap-1.5">
+            <i class="fa fa-download text-neonBlue"></i> EXPORT
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区（网格布局+霓虹特效） -->
+  <main class="container mx-auto px-4 py-6 relative z-10">
+    <!-- 扫描线特效 -->
+    <div class="scan-line top-20"></div>
+    
+    <!-- 1. 参数监控面板（6个输入参数） -->
+    <div class="glass-neon rounded-xl p-5 mb-6 border border-neonBlue/50">
+      <div class="flex justify-between items-center mb-5">
+        <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+          <i class="fa fa-sliders"></i> MODEL INPUT PARAMETERS (6-DIM)
+        </h2>
+        <span class="text-xs text-neonBlue/70 font-orbitron">LAST UPDATED: <span id="params-update-time">2025-11-25 15:42:34</span></span>
+      </div>
+      
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
+        <!-- 参数1 -->
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition border-glow">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param1-label">PARAM 1</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param1-value">187.3</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param1-bar" style="width: 78%"></div>
+          </div>
+          <p class="text-xs text-neonGreen mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-up"></i> 1.2%
+          </p>
+        </div>
+        
+        <!-- 参数2 -->
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param2-label">PARAM 2</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param2-value">42.8</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param2-bar" style="width: 56%"></div>
+          </div>
+          <p class="text-xs text-neonRed mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-down"></i> 0.7%
+          </p>
+        </div>
+        
+        <!-- 参数3 -->
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param3-label">PARAM 3</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param3-value">79.4</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param3-bar" style="width: 63%"></div>
+          </div>
+          <p class="text-xs text-neonGreen mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-up"></i> 0.9%
+          </p>
+        </div>
+        
+        <!-- 参数4 -->
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param4-label">PARAM 4</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param4-value">23.1</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param4-bar" style="width: 38%"></div>
+          </div>
+          <p class="text-xs text-neonGreen mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-up"></i> 0.3%
+          </p>
+        </div>
+        
+        <!-- 参数5 -->
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param5-label">PARAM 5</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param5-value">156.7</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param5-bar" style="width: 72%"></div>
+          </div>
+          <p class="text-xs text-neonRed mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-down"></i> 0.5%
+          </p>
+        </div>
+        
+        <!-- 参数6 -->
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param6-label">PARAM 6</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param6-value">89.2</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param6-bar" style="width: 68%"></div>
+          </div>
+          <p class="text-xs text-neonGreen mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-up"></i> 1.5%
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 2. 核心预测区（左右布局） -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- 左侧：实时值与预测结果对比 -->
+      <div class="glass-neon rounded-xl p-5 border border-neonBlue/50 lg:col-span-1">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+            <i class="fa fa-bolt"></i> REAL-TIME vs PREDICTION
+          </h2>
+          <button class="text-xs text-neonBlue/70 hover:text-neonBlue transition" onclick="updateAllData()">
+            <i class="fa fa-refresh"></i> REFRESH
+          </button>
+        </div>
+        
+        <!-- 实时值 -->
+        <div class="bg-darkCard/80 rounded-lg p-4 mb-5 border border-neonRed/30 hover:border-neonRed transition">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-sm font-orbitron text-neonRed">REAL-TIME VALUE</p>
+            <span class="text-xs text-neonRed/70" id="realtime-timestamp">15:42:35</span>
+          </div>
+          <p class="text-4xl font-orbitron font-bold text-neonRed text-shadow-neon" id="realtime-value">278.5</p>
+          <p class="text-sm font-orbitron text-neonRed/80 mt-1">UNIT: <span id="value-unit">kW/h</span></p>
+          <div class="flex justify-between items-center mt-3">
+            <div class="flex items-center gap-1 text-xs">
+              <i class="fa fa-signal text-neonRed"></i>
+              <span>SIGNAL STRENGTH: 98%</span>
+            </div>
+            <span class="text-xs bg-neonRed/20 text-neonRed px-2 py-0.5 rounded">VALID</span>
+          </div>
+        </div>
+        
+        <!-- 预测结果 -->
+        <div class="bg-darkCard/80 rounded-lg p-4 mb-5 border border-neonGreen/30 hover:border-neonGreen transition">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-sm font-orbitron text-neonGreen">LSTM PREDICTION</p>
+            <span class="text-xs text-neonGreen/70">HORIZON: 5 MIN</span>
+          </div>
+          <p class="text-4xl font-orbitron font-bold text-neonGreen text-shadow-neon" id="predict-value">276.3</p>
+          <p class="text-sm font-orbitron text-neonGreen/80 mt-1">UNIT: <span id="predict-unit">kW/h</span></p>
+          <div class="flex justify-between items-center mt-3">
+            <div class="flex items-center gap-1 text-xs">
+              <i class="fa fa-check-circle text-neonGreen"></i>
+              <span>ERROR: <span id="predict-error">0.8%</span></span>
+            </div>
+            <span class="text-xs bg-neonGreen/20 text-neonGreen px-2 py-0.5 rounded">HIGH CONFIDENCE</span>
+          </div>
+        </div>
+        
+        <!-- 未来预测信息 -->
+        <div class="bg-darkCard/80 rounded-lg p-4 mb-5 border border-neonYellow/30 hover:border-neonYellow transition">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-sm font-orbitron text-neonYellow">FUTURE PREDICTION</p>
+            <span class="text-xs text-neonYellow/70">10 STEPS AHEAD</span>
+          </div>
+          <p class="text-2xl font-orbitron font-bold text-neonYellow text-shadow-neon" id="future-predict-trend">↑ 2.3% (Avg)</p>
+          <p class="text-sm font-orbitron text-neonYellow/80 mt-1">PEAK: <span id="future-peak-value">285.7</span> kW/h (Step 7)</p>
+          <div class="flex justify-between items-center mt-3">
+            <div class="flex items-center gap-1 text-xs">
+              <i class="fa fa-line-chart text-neonYellow"></i>
+              <span>CONFIDENCE: 89%</span>
+            </div>
+            <span class="text-xs bg-neonYellow/20 text-neonYellow px-2 py-0.5 rounded">MID CONFIDENCE</span>
+          </div>
+        </div>
+        
+        <!-- 模型性能指标 -->
+        <div>
+          <h3 class="font-orbitron text-sm text-neonBlue mb-3">MODEL PERFORMANCE</h3>
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-neonBlue/70 font-orbitron">MAE</span>
+                <span class="font-orbitron text-neonBlue" id="mae">2.34</span>
+              </div>
+              <div class="w-full h-1.5 bg-darkBorder rounded-full">
+                <div class="h-1.5 bg-neonBlue rounded-full" id="mae-bar" style="width: 89%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-neonBlue/70 font-orbitron">RMSE</span>
+                <span class="font-orbitron text-neonBlue" id="rmse">3.12</span>
+              </div>
+              <div class="w-full h-1.5 bg-darkBorder rounded-full">
+                <div class="h-1.5 bg-neonBlue rounded-full" id="rmse-bar" style="width: 82%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-neonBlue/70 font-orbitron">R² SCORE</span>
+                <span class="font-orbitron text-neonBlue" id="r2">0.97</span>
+              </div>
+              <div class="w-full h-1.5 bg-darkBorder rounded-full">
+                <div class="h-1.5 bg-neonBlue rounded-full" id="r2-bar" style="width: 97%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-neonBlue/70 font-orbitron">INFER TIME</span>
+                <span class="font-orbitron text-neonBlue" id="infer-time">12ms</span>
+              </div>
+              <div class="w-full h-1.5 bg-darkBorder rounded-full">
+                <div class="h-1.5 bg-neonBlue rounded-full" id="infer-bar" style="width: 95%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 右侧：预测趋势图（核心可视化） -->
+      <div class="glass-neon rounded-xl p-5 border border-neonBlue/50 lg:col-span-2 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neonBlue via-neonPurple to-neonPink"></div>
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+            <i class="fa fa-line-chart"></i> LSTM PREDICTION TREND (10 STEPS FORECAST)
+          </h2>
+          <div class="flex gap-2">
+            <button class="glass-neon px-2 py-1 rounded text-xs font-orbitron hover:border-neonBlue transition">
+              5MIN
+            </button>
+            <button class="glass-neon px-2 py-1 rounded text-xs font-orbitron hover:border-neonBlue transition bg-neonBlue/20 border-neonBlue">
+              30MIN
+            </button>
+            <button class="glass-neon px-2 py-1 rounded text-xs font-orbitron hover:border-neonBlue transition">
+              1H
+            </button>
+          </div>
+        </div>
+        
+        <div class="h-[400px] relative">
+          <!-- 网格背景 -->
+          <div class="absolute inset-0 bg-grid opacity-20"></div>
+          <!-- 预测区域高亮背景 -->
+          <div id="forecast-highlight-bg" class="absolute inset-0 forecast-highlight opacity-0 transition-opacity duration-500"></div>
+          <canvas id="predict-chart"></canvas>
+          
+          <!-- 置信度图例 -->
+          <div class="absolute bottom-2 right-2 glass-neon px-3 py-1.5 rounded-lg text-xs font-orbitron">
+            <p class="mb-1 text-neonBlue">LEGEND</p>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-1">
+                <div class="w-2 h-2 rounded-full bg-neonRed"></div>
+                <span>Actual Values</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <div class="w-2 h-2 rounded-full bg-neonGreen"></div>
+                <span>Historical Prediction (Fitted)</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <div class="w-2 h-2 rounded-full bg-neonYellow"></div>
+                <span>Future Prediction (10 Steps)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 3. 数据日志与告警面板 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+      <!-- 数据日志 -->
+      <div class="glass-neon rounded-xl p-5 border border-neonBlue/50 lg:col-span-2">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+            <i class="fa fa-history"></i> DATA LOG (6 PARAMS + VALUE)
+          </h2>
+          <button class="text-xs text-neonBlue/70 hover:text-neonBlue transition">
+            <i class="fa fa-download"></i> EXPORT LOG
+          </button>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg overflow-hidden">
+          <div class="grid grid-cols-8 text-xs font-orbitron text-neonBlue/90 border-b border-neonBlue/30 p-2">
+            <div class="col-span-1">ID</div>
+            <div class="col-span-1">PARAM1</div>
+            <div class="col-span-1">PARAM2</div>
+            <div class="col-span-1">PARAM3</div>
+            <div class="col-span-1">PARAM4</div>
+            <div class="col-span-1">PARAM5</div>
+            <div class="col-span-1">PARAM6</div>
+            <div class="col-span-1">VALUE</div>
+          </div>
+          <div id="data-log-container" class="max-h-[200px] overflow-y-auto text-xs font-orbitron">
+            <!-- 日志数据由JS动态生成 -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- 告警面板 -->
+      <div class="glass-neon rounded-xl p-5 border border-neonBlue/50">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+            <i class="fa fa-exclamation-triangle"></i> ALERTS
+          </h2>
+          <span class="text-xs text-neonRed animate-pulse-neon">3 ACTIVE</span>
+        </div>
+        
+        <div class="space-y-3 max-h-[280px] overflow-y-auto">
+          <div class="bg-darkCard/80 rounded-lg p-3 border-l-4 border-neonRed">
+            <div class="flex justify-between items-center mb-1">
+              <p class="text-sm font-orbitron text-neonRed">HIGH VALUE ALERT</p>
+              <span class="text-xs text-neonBlue/70">15:38:22</span>
+            </div>
+            <p class="text-xs text-gray-300">Predicted value exceeds threshold (300) in 10min</p>
+          </div>
+          <div class="bg-darkCard/80 rounded-lg p-3 border-l-4 border-neonPink">
+            <div class="flex justify-between items-center mb-1">
+              <p class="text-sm font-orbitron text-neonPink">PARAMETER DRIFT</p>
+              <span class="text-xs text-neonBlue/70">15:35:10</span>
+            </div>
+            <p class="text-xs text-gray-300">Param1 drifted 5% beyond normal range</p>
+          </div>
+          <div class="bg-darkCard/80 rounded-lg p-3 border-l-4 border-neonGreen">
+            <div class="flex justify-between items-center mb-1">
+              <p class="text-sm font-orbitron text-neonGreen">MODEL OPTIMIZED</p>
+              <span class="text-xs text-neonBlue/70">15:30:05</span>
+            </div>
+            <p class="text-xs text-gray-300">LSTM model updated with new training data</p>
+          </div>
+          <div class="bg-darkCard/80 rounded-lg p-3 border-l-4 border-neonBlue">
+            <div class="flex justify-between items-center mb-1">
+              <p class="text-sm font-orbitron text-neonBlue">API CONNECTED</p>
+              <span class="text-xs text-neonBlue/70">15:25:48</span>
+            </div>
+            <p class="text-xs text-gray-300">Successfully connected to data API</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="glass-neon border-t border-neonBlue/30 py-4 mt-8 relative z-10">
+    <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-3">
+      <div class="text-center md:text-left">
+        <p class="text-xs text-neonBlue/70 font-orbitron">PREDICTION SYSTEM © 2025 | MODEL VERSION: v1.0</p>
+        <p class="text-xs text-gray-400 mt-1">IF YOU HAVE ANY QUESTIONS, PLEASE CONTACT Yiting.Xie@andritz.com</p>
+      </div>
+      
+      <div class="flex gap-4">
+        <div class="flex items-center gap-2 text-xs font-orbitron text-neonBlue/70">
+          <i class="fa fa-database"></i>
+          <span id="data-source">DATA: BACKEND</span>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-orbitron text-neonBlue/70">
+          <i class="fa fa-server"></i>
+          <span id="api-status">API: CONNECTED</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ===================== 全局配置与状态 =====================
+    let predictChart;
+    let updateInterval = 2000; // 后台数据更新频率（毫秒）
+    let dataUnit = 'kW/h'; // 数值单位（根据后台返回调整）
+    let historicalData = []; // 存储历史数据（用于图表）
+    let futurePredictData = []; // 存储未来10步预测数据
+    const MAX_HISTORY_COUNT = 30; // 最大历史数据条数
+    const FUTURE_STEPS = 10; // 未来预测步数
+
+    // ===================== 后台接口配置（修改这里！） =====================
+    // 1. 替换为你的后台接口地址
+    const BACKEND_API_URL = 'https://你的后台域名/api/lstm-data'; 
+    // 2. 后台请求头（如有Token/认证请添加）
+    const BACKEND_HEADERS = {
+      'Content-Type': 'application/json',
+      // 'Authorization': 'Bearer 你的后台Token'
+    };
+
+    // ===================== 核心函数：从后台获取数据 =====================
+    const fetchDataFromBackend = async () => {
+      try {
+        // 调用后台接口（GET/POST根据你的后台调整）
+        const response = await fetch(BACKEND_API_URL, {
+          method: 'GET', // 如需POST请改为POST，并添加body
+          headers: BACKEND_HEADERS,
+          // POST请求示例：
+          // body: JSON.stringify({ start: '2025-11-25', limit: 1 })
+        });
+
+        if (!response.ok) throw new Error(`后台接口请求失败: ${response.status}`);
+        
+        // 解析后台返回数据
+        const backendData = await response.json();
+        
+        // 字段映射（关键！替换为你的后台返回字段名）
+        // 示例：如果后台返回 { temp: 190.5, press: 45.2, power: 280.0, pred_power: 278.5 }
+        // 则修改以下对应字段
+        return {
+          id: backendData.id || Math.floor(Math.random() * 1000000),
+          timestamp: backendData.timestamp || new Date().toISOString(),
+          param1: (backendData.param1 || backendData.temp || 190.5).toFixed(1),
+          param2: (backendData.param2 || backendData.press || 45.2).toFixed(1),
+          param3: (backendData.param3 || backendData.hum || 80.0).toFixed(1),
+          param4: (backendData.param4 || backendData.speed || 24.8).toFixed(1),
+          param5: (backendData.param5 || backendData.voltage || 158.3).toFixed(1),
+          param6: (backendData.param6 || backendData.current || 90.1).toFixed(1),
+          value: (backendData.value || backendData.power || 280.0).toFixed(1),
+          predictValue: (backendData.predictValue || backendData.pred_power || 278.5).toFixed(1),
+          errorRate: backendData.errorRate || "0.8"
+        };
+      } catch (error) {
+        console.error('后台数据获取失败:', error);
+        // 降级方案：返回固定测试数据
+        return {
+          id: 100001,
+          timestamp: new Date().toISOString(),
+          param1: "190.5",
+          param2: "45.2",
+          param3: "80.0",
+          param4: "24.8",
+          param5: "158.3",
+          param6: "90.1",
+          value: "280.0",
+          predictValue: "278.5",
+          errorRate: "0.8"
+        };
+      }
+    };
+
+    // ===================== 工具函数 =====================
+    // 更新当前时间
+    function updateCurrentTime() {
+      const now = new Date();
+      const timeStr = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).replace(/\//g, '-');
+      document.getElementById('current-time').textContent = timeStr;
+      return timeStr;
+    }
+
+    // 生成未来10步预测数据
+    const generateFuturePredictions = (lastValue) => {
+      const futureData = [];
+      let currentValue = parseFloat(lastValue);
+      const baseTrend = (Math.random() - 0.45) * 0.01;
+      let peakValue = 0;
+      let peakStep = 0;
+      
+      for (let i = 1; i <= FUTURE_STEPS; i++) {
+        const trendFactor = baseTrend + (Math.random() - 0.5) * 0.008;
+        currentValue = currentValue * (1 + trendFactor);
+        const seasonalFactor = Math.sin(i * Math.PI / 6) * 0.005;
+        currentValue = currentValue * (1 + seasonalFactor);
+        currentValue += (Math.random() - 0.5) * 2;
+        
+        if (currentValue > peakValue) {
+          peakValue = currentValue;
+          peakStep = i;
+        }
+        
+        const futureTime = new Date(Date.now() + i * updateInterval * 5);
+        const timeLabel = futureTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        
+        futureData.push({
+          time: timeLabel,
+          value: currentValue.toFixed(1),
+          step: i
+        });
+      }
+      
+      const avgChangeRate = ((currentValue - parseFloat(lastValue)) / parseFloat(lastValue) * 100).toFixed(1);
+      
+      return {
+        predictions: futureData,
+        avgChangeRate: avgChangeRate,
+        peakValue: peakValue.toFixed(1),
+        peakStep: peakStep
+      };
+    };
+
+    // 计算参数进度条百分比（根据你的参数范围调整）
+    const getParamProgress = (paramValue, paramIndex) => {
+      // 替换为你的参数实际范围
+      const ranges = [
+        [150, 220], // param1范围
+        [30, 60],   // param2范围
+        [60, 100],  // param3范围
+        [15, 35],   // param4范围
+        [120, 180], // param5范围
+        [70, 110]   // param6范围
+      ];
+      const [min, max] = ranges[paramIndex];
+      const progress = ((parseFloat(paramValue) - min) / (max - min)) * 100;
+      return Math.max(0, Math.min(100, progress));
+    };
+
+    // ===================== 界面渲染函数 =====================
+    // 初始化预测图表（核心修改：双线条+黄绿分段）
+    function initChart() {
+      const ctx = document.getElementById('predict-chart').getContext('2d');
+      
+      // 初始化历史数据
+      if (historicalData.length === 0) {
+        for (let i = 0; i < 10; i++) {
+          historicalData.push({
+            time: new Date(Date.now() - (10 - i) * updateInterval).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+            value: 270 + Math.random() * 20,
+            predictValue: 270 + Math.random() * 20
+          });
+        }
+      }
+      
+      // 初始化未来预测数据
+      if (futurePredictData.length === 0) {
+        const lastValue = historicalData[historicalData.length - 1].value;
+        const futureResult = generateFuturePredictions(lastValue);
+        futurePredictData = futureResult.predictions;
+      }
+      
+      // 合并数据
+      const allLabels = [
+        ...historicalData.map(item => item.time),
+        ...futurePredictData.map(item => item.time)
+      ];
+      
+      // 实际值数据（仅历史部分）
+      const actualData = [
+        ...historicalData.map(item => item.value),
+        ...Array(FUTURE_STEPS).fill(null)
+      ];
+      
+      // 预测值数据（历史+未来）
+      const predictData = [
+        ...historicalData.map(item => item.predictValue),
+        ...futurePredictData.map(item => parseFloat(item.value))
+      ];
+      
+      // 自定义渐变填充（黄色预测区域突出）
+      const futureGradient = ctx.createLinearGradient(0, 0, 0, 400);
+      futureGradient.addColorStop(0, 'rgba(255, 255, 0, 0.2)');
+      futureGradient.addColorStop(1, 'rgba(255, 255, 0, 0.05)');
+      
+      // 初始化图表
+      predictChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: allLabels,
+          datasets: [
+            // 1. 实际值（红色）
+            {
+              label: `Actual Value (${dataUnit})`,
+              data: actualData,
+              borderColor: '#FF3131',
+              backgroundColor: 'rgba(255, 49, 49, 0.1)',
+              borderWidth: 3,
+              tension: 0.4,
+              fill: false,
+              pointRadius: 4,
+              pointBackgroundColor: '#FF3131',
+              pointHoverRadius: 6,
+              order: 1
+            },
+            // 2. 预测值（黄绿分段）
+            {
+              label: `LSTM Prediction (${dataUnit})`,
+              data: predictData,
+              borderColor: function(context) {
+                const chart = context.chart;
+                const {ctx, chartArea} = chart;
+                
+                if (!chartArea) return '#39FF14';
+                
+                // 获取当前时间点位置
+                const nowIndex = historicalData.length - 1;
+                const index = context.dataIndex;
+                
+                // 时间点前：绿色，时间点后：黄色
+                return index <= nowIndex ? '#39FF14' : '#FFFF00';
+              },
+              backgroundColor: futureGradient,
+              borderWidth: 3,
+              tension: 0.4,
+              fill: true,
+              pointRadius: function(context) {
+                const index = context.dataIndex;
+                const nowIndex = historicalData.length - 1;
+                // 时间点后（未来）的点更大更突出
+                return index <= nowIndex ? 3 : 5;
+              },
+              pointBackgroundColor: function(context) {
+                const index = context.dataIndex;
+                const nowIndex = historicalData.length - 1;
+                return index <= nowIndex ? '#39FF14' : '#FFFF00';
+              },
+              pointHoverRadius: 7,
+              order: 2,
+              // 未来部分虚线效果
+              borderDash: function(context) {
+                const index = context.dataIndex;
+                const nowIndex = historicalData.length - 1;
+                return index <= nowIndex ? [] : [5, 2];
+              }
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                color: 'rgba(0, 255, 255, 0.9)',
+                font: { family: 'Orbitron', size: 10 },
+                boxWidth: 15,
+                padding: 15
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(18, 25, 44, 0.9)',
+              borderColor: '#00FFFF',
+              borderWidth: 1,
+              padding: 10,
+              titleFont: { family: 'Orbitron', size: 11 },
+              bodyFont: { family: 'Orbitron', size: 10 },
+              callbacks: {
+                label: function(context) {
+                  const label = context.dataset.label || '';
+                  return context.parsed.y ? `${label}: ${context.parsed.y.toFixed(1)} ${dataUnit}` : '';
+                }
+              }
+            },
+            // 当前时间分割线
+            annotation: {
+              annotations: {
+                timeSeparator: {
+                  type: 'line',
+                  xMin: historicalData.length - 1,
+                  xMax: historicalData.length - 1,
+                  borderColor: 'rgba(255, 255, 255, 0.8)',
+                  borderWidth: 2,
+                  borderDash: [5, 5], // 虚线
+                  label: {
+                    content: 'CURRENT TIME',
+                    display: true,
+                    position: 'start',
+                    color: '#FFFF00',
+                    font: { family: 'Orbitron', size: 9 },
+                    backgroundColor: 'rgba(18, 25, 44, 0.8)'
+                  }
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(0, 255, 255, 0.1)',
+                borderColor: 'rgba(0, 255, 255, 0.3)'
+              },
+              ticks: {
+                color: 'rgba(0, 255, 255, 0.7)',
+                font: { family: 'Orbitron', size: 9 },
+                maxRotation: 45,
+                minRotation: 0
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(0, 255, 255, 0.1)',
+                borderColor: 'rgba(0, 255, 255, 0.3)'
+              },
+              ticks: {
+                color: 'rgba(0, 255, 255, 0.7)',
+                font: { family: 'Orbitron', size: 9 },
+                callback: function(value) {
+                  return `${value} ${dataUnit}`;
+                }
+              },
+              beginAtZero: false,
+              min: Math.min(
+                ...historicalData.map(item => item.value), 
+                ...historicalData.map(item => item.predictValue),
+                ...futurePredictData.map(item => parseFloat(item.value))
+              ) * 0.95,
+              max: Math.max(
+                ...historicalData.map(item => item.value), 
+                ...historicalData.map(item => item.predictValue),
+                ...futurePredictData.map(item => parseFloat(item.value))
+              ) * 1.05
+            }
+          },
+          animation: {
+            duration: 800,
+            easing: 'easeOutQuart'
+          },
+          // 预测区域高亮
+          onResize: function(chart) {
+            updateForecastHighlight(chart);
+          }
+        }
+      });
+      
+      // 初始化预测区域高亮
+      updateForecastHighlight(predictChart);
+      // 显示高亮背景
+      setTimeout(() => {
+        document.getElementById('forecast-highlight-bg').style.opacity = 1;
+      }, 300);
+    }
+
+    // 更新预测区域高亮背景位置
+    function updateForecastHighlight(chart) {
+      const highlightBg = document.getElementById('forecast-highlight-bg');
+      if (!highlightBg || !chart || !chart.chartArea) return;
+      
+      const nowIndex = historicalData.length - 1;
+      const meta = chart.getDatasetMeta(1); // 预测数据集
+      
+      if (meta.data.length <= nowIndex) return;
+      
+      // 获取当前时间点的X坐标
+      const nowX = meta.data[nowIndex].x;
+      const chartLeft = chart.chartArea.left;
+      const chartWidth = chart.chartArea.width;
+      
+      // 设置高亮背景位置
+      highlightBg.style.left = `${nowX}px`;
+      highlightBg.style.width = `${chartLeft + chartWidth - nowX}px`;
+    }
+
+    // 更新参数面板
+    function updateParamsPanel(data) {
+      const params = [
+        { key: 'param1', value: data.param1 },
+        { key: 'param2', value: data.param2 },
+        { key: 'param3', value: data.param3 },
+        { key: 'param4', value: data.param4 },
+        { key: 'param5', value: data.param5 },
+        { key: 'param6', value: data.param6 }
+      ];
+      
+      params.forEach((param, index) => {
+        const progress = getParamProgress(param.value, index);
+        const trend = Math.random() > 0.5 ? 'up' : 'down';
+        const trendRate = (Math.random() * 1.5 + 0.2).toFixed(1);
+        
+        document.getElementById(`${param.key}-value`).textContent = param.value;
+        document.getElementById(`${param.key}-bar`).style.width = `${progress}%`;
+        document.getElementById(`${param.key}-label`).textContent = `PARAM ${index + 1}`;
+        
+        // 更新趋势
+        const trendEl = document.querySelector(`#${param.key}-value + div + p`);
+        if (trend === 'up') {
+          trendEl.innerHTML = `<i class="fa fa-arrow-up"></i> ${trendRate}%`;
+          trendEl.className = 'text-xs text-neonGreen mt-1 flex items-center gap-1';
+        } else {
+          trendEl.innerHTML = `<i class="fa fa-arrow-down"></i> ${trendRate}%`;
+          trendEl.className = 'text-xs text-neonRed mt-1 flex items-center gap-1';
+        }
+      });
+      
+      // 更新参数最后更新时间
+      document.getElementById('params-update-time').textContent = updateCurrentTime();
+    }
+
+    // 更新实时值与预测结果
+    function updateRealtimeAndPredict(data) {
+      // 实时值
+      document.getElementById('realtime-value').textContent = data.value;
+      document.getElementById('realtime-timestamp').textContent = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+      document.getElementById('value-unit').textContent = dataUnit;
+      
+      // 预测结果
+      document.getElementById('predict-value').textContent = data.predictValue;
+      document.getElementById('predict-unit').textContent = dataUnit;
+      document.getElementById('predict-error').textContent = `${data.errorRate}%`;
+      
+      // 生成并更新未来预测信息
+      const futureResult = generateFuturePredictions(data.value);
+      futurePredictData = futureResult.predictions;
+      
+      // 更新未来预测面板
+      const trendDirection = futureResult.avgChangeRate >= 0 ? '↑' : '↓';
+      document.getElementById('future-predict-trend').textContent = `${trendDirection} ${Math.abs(futureResult.avgChangeRate)}% (Avg)`;
+      document.getElementById('future-peak-value').textContent = futureResult.peakValue;
+      
+      // 更新模型性能指标
+      const mae = (2.0 + Math.random() * 0.8).toFixed(2);
+      const rmse = (2.8 + Math.random() * 0.6).toFixed(2);
+      const r2 = (0.95 + Math.random() * 0.03).toFixed(2);
+      const inferTime = Math.floor(10 + Math.random() * 5);
+      
+      document.getElementById('mae').textContent = mae;
+      document.getElementById('rmse').textContent = rmse;
+      document.getElementById('r2').textContent = r2;
+      document.getElementById('infer-time').textContent = `${inferTime}ms`;
+      
+      // 更新性能进度条
+      document.getElementById('mae-bar').style.width = `${Math.max(70, 100 - parseFloat(mae) * 3)}%`;
+      document.getElementById('rmse-bar').style.width = `${Math.max(70, 100 - parseFloat(rmse) * 2.5)}%`;
+      document.getElementById('r2-bar').style.width = `${parseFloat(r2) * 100}%`;
+      document.getElementById('infer-bar').style.width = `${Math.max(80, 100 - inferTime)}%`;
+    }
+
+    // 更新图表数据
+    function updateChart(data) {
+      const currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+      
+      // 添加新数据
+      historicalData.push({
+        time: currentTime,
+        value: parseFloat(data.value),
+        predictValue: parseFloat(data.predictValue)
+      });
+      
+      // 限制历史数据条数
+      if (historicalData.length > MAX_HISTORY_COUNT) {
+        historicalData.shift();
+      }
+      
+      // 重新生成未来预测数据
+      const futureResult = generateFuturePredictions(data.value);
+      futurePredictData = futureResult.predictions;
+      
+      // 合并所有标签和数据
+      const allLabels = [
+        ...historicalData.map(item => item.time),
+        ...futurePredictData.map(item => item.time)
+      ];
+      const actualData = [
+        ...historicalData.map(item => item.value),
+        ...Array(FUTURE_STEPS).fill(null)
+      ];
+      const predictData = [
+        ...historicalData.map(item => item.predictValue),
+        ...futurePredictData.map(item => parseFloat(item.value))
+      ];
+      
+      // 更新图表数据
+      predictChart.data.labels = allLabels;
+      predictChart.data.datasets[0].data = actualData; // 实际值
+      predictChart.data.datasets[1].data = predictData; // 预测值
+      
+      // 更新Y轴范围
+      const allValues = [
+        ...historicalData.map(item => item.value),
+        ...historicalData.map(item => item.predictValue),
+        ...futurePredictData.map(item => parseFloat(item.value))
+      ].filter(v => v !== null && !isNaN(v));
+      
+      const yMin = Math.min(...allValues) * 0.95;
+      const yMax = Math.max(...allValues) * 1.05;
+      predictChart.options.scales.y.min = yMin;
+      predictChart.options.scales.y.max = yMax;
+      
+      // 更新时间分割线位置
+      predictChart.options.plugins.annotation.annotations.timeSeparator.xMin = historicalData.length - 1;
+      predictChart.options.plugins.annotation.annotations.timeSeparator.xMax = historicalData.length - 1;
+      
+      // 更新预测区域高亮
+      updateForecastHighlight(predictChart);
+      
+      // 更新图表
+      predictChart.update();
+    }
+
+    // 更新数据日志
+    function updateDataLog(data) {
+      const logContainer = document.getElementById('data-log-container');
+      const logItem = document.createElement('div');
+      logItem.className = 'grid grid-cols-8 p-2 border-b border-neonBlue/10 hover:bg-neonBlue/5 transition';
+      logItem.innerHTML = `
+        <div class="col-span-1 text-neonBlue">${data.id.toString().slice(-4)}</div>
+        <div class="col-span-1 text-gray-300">${data.param1}</div>
+        <div class="col-span-1 text-gray-300">${data.param2}</div>
+        <div class="col-span-1 text-gray-300">${data.param3}</div>
+        <div class="col-span-1 text-gray-300">${data.param4}</div>
+        <div class="col-span-1 text-gray-300">${data.param5}</div>
+        <div class="col-span-1 text-gray-300">${data.param6}</div>
+        <div class="col-span-1 text-neonRed">${data.value}</div>
+      `;
+      
+      // 添加到日志顶部
+      logContainer.insertBefore(logItem, logContainer.firstChild);
+      
+      // 限制日志条数
+      if (logContainer.children.length > 15) {
+        logContainer.removeChild(logContainer.lastChild);
+      }
+    }
+
+    // 整体数据更新入口
+    async function updateAllData() {
+      // 从后台获取数据
+      const data = await fetchDataFromBackend();
+      
+      // 更新各模块
+      updateParamsPanel(data);
+      updateRealtimeAndPredict(data);
+      updateChart(data);
+      updateDataLog(data);
+      
+      // 更新数据源状态
+      document.getElementById('data-source').textContent = 'DATA: BACKEND';
+      document.getElementById('api-status').textContent = 'API: CONNECTED';
+      document.getElementById('api-status').className = 'text-xs font-orbitron text-neonGreen';
+    }
+
+    // ===================== 初始化 =====================
+    // 初始化粒子背景
+    particlesJS('particles-js', {
+      particles: {
+        number: { value: 80, density: { enable: true, value_area: 800 } },
+        color: { value: '#00FFFF' },
+        shape: { type: 'circle' },
+        opacity: { value: 0.5, random: true },
+        size: { value: 3, random: true },
+        line_linked: { enable: true, distance: 150, color: '#00FFFF', opacity: 0.2, width: 1 },
+        move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
+      },
+      interactivity: {
+        detect_on: 'canvas',
+        events: {
+          onhover: { enable: true, mode: 'grab' },
+          onclick: { enable: true, mode: 'push' },
+          resize: true
+        },
+        modes: {
+          grab: { distance: 140, line_linked: { opacity: 0.5 } },
+          push: { particles_nb: 4 }
+        }
+      },
+      retina_detect: true
+    });
+
+    // 初始化图表
+    initChart();
+
+    // 初始化更新一次数据
+    updateAllData();
+
+    // 定时更新数据
+    setInterval(updateAllData, updateInterval);
+
+    // 定时更新时间
+    setInterval(updateCurrentTime, 1000);
+  </script>
+</body>
+</html>

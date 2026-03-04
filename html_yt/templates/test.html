@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metris LSTM 预测 - 测试ing...</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            neonBlue: '#00FFFF',    
+            neonPurple: '#9D00FF',  
+            neonPink: '#FF00FF',    
+            neonGreen: '#39FF14',  
+            neonRed: '#FF3131',     
+            darkBg: '#0A0E17',      
+            darkCard: '#12192C',   
+            darkBorder: '#2D3748',  
+          },
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            orbitron: ['Orbitron', 'sans-serif'], 
+          },
+          animation: {
+            'pulse-neon': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'glow': 'glow 2s ease-in-out infinite alternate',
+            'float': 'float 6s ease-in-out infinite',
+            'scan': 'scan 3s linear infinite',
+          },
+          keyframes: {
+            glow: {
+              '0%': { boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF' },
+              '100%': { boxShadow: '0 0 10px #00FFFF, 0 0 20px #00FFFF, 0 0 30px #00FFFF' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            scan: {
+              '0%': { transform: 'translateY(-100%)' },
+              '100%': { transform: 'translateY(100%)' },
+            }
+          }
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .text-shadow-neon {
+        text-shadow: 0 0 5px #00FFFF, 0 0 10px #00FFFF;
+      }
+      .border-glow {
+        box-shadow: 0 0 5px #00FFFF, 0 0 10px rgba(0, 255, 255, 0.3);
+      }
+      .bg-grid {
+        background-image: 
+          linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      .scan-line {
+        background: linear-gradient(90deg, rgba(57, 255, 20, 0.1), rgba(57, 255, 20, 0.5), rgba(57, 255, 20, 0.1));
+        height: 2px;
+        width: 100%;
+        position: absolute;
+        left: 0;
+        animation: scan 3s linear infinite;
+      }
+      .glass-neon {
+        background: rgba(18, 25, 44, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-darkBg text-white min-h-screen overflow-x-hidden bg-grid">
+  <div id="particles-js" class="fixed inset-0 z-0 opacity-30"></div>
+  
+  <header class="glass-neon sticky top-0 z-50 border-b border-neonBlue/30">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-darkCard flex items-center justify-center border border-neonBlue animate-glow">
+          <i class="fa fa-brain text-neonBlue text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-orbitron font-bold text-neonBlue text-shadow-neon">Metris-预测模型</h1>
+          <p class="text-xs text-neonBlue/70 -mt-1"></p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-full bg-neonGreen animate-pulse-neon"></div>
+          <span class="text-sm font-orbitron text-neonGreen">成功</span>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <i class="fa fa-refresh text-neonBlue animate-spin"></i>
+          <span class="text-sm font-orbitron">更新间隔: <span id="update-interval">2</span>S</span>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <i class="fa fa-clock-o text-neonBlue"></i>
+          <span class="text-sm font-orbitron" id="current-time">2025-11-25 15:42:36</span>
+        </div>
+        
+        <div class="flex gap-3">
+          <button class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonBlue animate-glow transition flex items-center gap-1.5">
+            <i class="fa fa-download text-neonBlue"></i> 导出
+          </button>
+          <button class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonBlue transition flex items-center gap-1.5" id="api-config-btn">
+            <i class="fa fa-cog text-neonBlue"></i> API配置
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="api-config-modal" class="fixed inset-0 bg-darkBg/90 z-50 flex items-center justify-center hidden">
+    <div class="glass-neon rounded-xl p-6 w-full max-w-md border border-neonBlue/50 animate-float">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-orbitron font-semibold text-neonBlue text-shadow-neon">API DATA CONFIG</h3>
+        <button id="close-modal" class="text-neonBlue/70 hover:text-neonBlue transition">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="space-y-5">
+        <div>
+          <label class="block text-sm font-orbitron text-neonBlue mb-1">API ENDPOINT</label>
+          <input type="url" id="api-url" placeholder="https://your-api.com/" 
+                 class="w-full px-3 py-2 bg-darkCard border border-neonBlue/30 rounded-lg focus:outline-none focus:border-neonBlue text-white font-orbitron text-sm">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-orbitron text-neonBlue mb-1">REQUEST METHOD</label>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-1 font-orbitron text-sm">
+              <input type="radio" name="method" value="GET" checked class="accent-neonBlue"> GET
+            </label>
+            <label class="flex items-center gap-1 font-orbitron text-sm">
+              <input type="radio" name="method" value="POST" class="accent-neonBlue"> POST
+            </label>
+          </div>
+        </div>
+        
+        <div id="post-body-container" class="hidden">
+          <label class="block text-sm font-orbitron text-neonBlue mb-1">POST BODY (JSON)</label>
+          <textarea id="api-post-body" rows="4" class="w-full px-3 py-2 bg-darkCard border border-neonBlue/30 rounded-lg focus:outline-none focus:border-neonBlue text-white font-orbitron text-sm"
+                    placeholder='{"start": "2025-11-25", "limit": 100}'></textarea>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-orbitron text-neonBlue mb-1">HEADERS (JSON)</label>
+          <textarea id="api-headers" rows="2" class="w-full px-3 py-2 bg-darkCard border border-neonBlue/30 rounded-lg focus:outline-none focus:border-neonBlue text-white font-orbitron text-sm"
+                    placeholder='{"Authorization": "Bearer your-token", "Content-Type": "application/json"}'></textarea>
+        </div>
+        
+        <div class="border-t border-neonBlue/30 pt-4">
+          <label class="block text-sm font-orbitron text-neonBlue mb-2">FIELD MAPPING (6 PARAMS + 1 VALUE)</label>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-neonBlue/70 mb-1">PARAM 1 KEY</label>
+              <input type="text" id="param1-key" placeholder="param1" class="w-full px-2 py-1 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron">
+            </div>
+            <div>
+              <label class="block text-xs text-neonBlue/70 mb-1">PARAM 2 KEY</label>
+              <input type="text" id="param2-key" placeholder="param2" class="w-full px-2 py-1 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron">
+            </div>
+            <div>
+              <label class="block text-xs text-neonBlue/70 mb-1">PARAM 3 KEY</label>
+              <input type="text" id="param3-key" placeholder="param3" class="w-full px-2 py-1 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron">
+            </div>
+            <div>
+              <label class="block text-xs text-neonBlue/70 mb-1">PARAM 4 KEY</label>
+              <input type="text" id="param4-key" placeholder="param4" class="w-full px-2 py-1 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron">
+            </div>
+            <div>
+              <label class="block text-xs text-neonBlue/70 mb-1">PARAM 5 KEY</label>
+              <input type="text" id="param5-key" placeholder="param5" class="w-full px-2 py-1 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron">
+            </div>
+            <div>
+              <label class="block text-xs text-neonBlue/70 mb-1">PARAM 6 KEY</label>
+              <input type="text" id="param6-key" placeholder="param6" class="w-full px-2 py-1 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron">
+            </div>
+            <div class="col-span-2">
+              <label class="block text-xs text-neonBlue/70 mb-1">REAL-TIME VALUE KEY</label>
+              <input type="text" id="value-key" placeholder="value" class="w-full px-2 py-1 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron">
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="use-api" class="accent-neonBlue">
+          <label for="use-api" class="text-sm font-orbitron text-neonBlue/90">ENABLE API DATA (DISABLE MOCK)</label>
+        </div>
+      </div>
+      
+      <div class="mt-6 flex justify-end gap-3">
+        <button id="test-api" class="px-4 py-2 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron hover:border-neonBlue transition">
+          TEST CONNECTION
+        </button>
+        <button id="save-api-config" class="px-4 py-2 bg-neonBlue text-darkBg rounded text-sm font-orbitron hover:bg-neonBlue/80 transition">
+          SAVE CONFIG
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <main class="container mx-auto px-4 py-6 relative z-10">
+    <div class="scan-line top-20"></div>
+    
+    <div class="glass-neon rounded-xl p-5 mb-6 border border-neonBlue/50">
+      <div class="flex justify-between items-center mb-5">
+        <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+          <i class="fa fa-sliders"></i> 输入参数 - 工厂标签
+        </h2>
+        <span class="text-xs text-neonBlue/70 font-orbitron">上次更新: <span id="params-update-time">2025-11-25 15:42:34</span></span>
+      </div>
+      
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition border-glow">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param1-label">电耗</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param1-value">187.3</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param1-bar" style="width: 78%"></div>
+          </div>
+          <p class="text-xs text-neonGreen mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-up"></i> 1.2%
+          </p>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param2-label">浓度</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param2-value">42.8</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param2-bar" style="width: 56%"></div>
+          </div>
+          <p class="text-xs text-neonRed mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-down"></i> 0.7%
+          </p>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param3-label">温度</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param3-value">79.4</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param3-bar" style="width: 63%"></div>
+          </div>
+          <p class="text-xs text-neonGreen mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-up"></i> 0.9%
+          </p>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param4-label">液位</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param4-value">23.1</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param4-bar" style="width: 38%"></div>
+          </div>
+          <p class="text-xs text-neonGreen mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-up"></i> 0.3%
+          </p>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param5-label">tower</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param5-value">156.7</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param5-bar" style="width: 72%"></div>
+          </div>
+          <p class="text-xs text-neonRed mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-down"></i> 0.5%
+          </p>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg p-3 border border-neonBlue/30 hover:border-neonBlue transition">
+          <p class="text-xs text-neonBlue/70 font-orbitron mb-1" id="param6-label">H2O2</p>
+          <p class="text-2xl font-orbitron font-bold text-neonBlue" id="param6-value">89.2</p>
+          <div class="w-full h-1 bg-darkBorder rounded-full mt-2">
+            <div class="h-1 bg-neonBlue rounded-full" id="param6-bar" style="width: 68%"></div>
+          </div>
+          <p class="text-xs text-neonGreen mt-1 flex items-center gap-1">
+            <i class="fa fa-arrow-up"></i> 1.5%
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="glass-neon rounded-xl p-5 border border-neonBlue/50 lg:col-span-1">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+            <i class="fa fa-bolt"></i> 实际值 & 预测值
+          </h2>
+          <button class="text-xs text-neonBlue/70 hover:text-neonBlue transition">
+            <i class="fa fa-refresh"></i> 更新
+          </button>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg p-4 mb-5 border border-neonRed/30 hover:border-neonRed transition">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-sm font-orbitron text-neonRed">实时值</p>
+            <span class="text-xs text-neonRed/70" id="realtime-timestamp">15:42:35</span>
+          </div>
+          <p class="text-4xl font-orbitron font-bold text-neonRed text-shadow-neon" id="realtime-value">278.5</p>
+          <p class="text-sm font-orbitron text-neonRed/80 mt-1">单位: <span id="value-unit">kW/h</span></p>
+          <div class="flex justify-between items-center mt-3">
+            <div class="flex items-center gap-1 text-xs">
+              <i class="fa fa-signal text-neonRed"></i>
+              <span>状态: <span id="realtime-status">正常</span></span>
+            </div>
+            <span class="text-xs bg-neonRed/20 text-neonRed px-2 py-0.5 rounded">成功</span>
+          </div>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg p-4 mb-5 border border-neonGreen/30 hover:border-neonGreen transition">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-sm font-orbitron text-neonGreen">LSTM预测</p>
+            <span class="text-xs text-neonGreen/70">预测时长: 5分钟</span>
+          </div>
+          <p class="text-4xl font-orbitron font-bold text-neonGreen text-shadow-neon" id="predict-value">276.3</p>
+          <p class="text-sm font-orbitron text-neonGreen/80 mt-1">单位: <span id="predict-unit">kW/h</span></p>
+          <div class="flex justify-between items-center mt-3">
+            <div class="flex items-center gap-1 text-xs">
+              <i class="fa fa-check-circle text-neonGreen"></i>
+              <span>误差: <span id="predict-error">0.8%</span></span>
+            </div>
+            <span class="text-xs bg-neonGreen/20 text-neonGreen px-2 py-0.5 rounded">高置信度</span>
+          </div>
+        </div>
+        
+        <div>
+          <h3 class="font-orbitron text-sm text-neonBlue mb-3">模型性能指标</h3>
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-neonBlue/70 font-orbitron">MAE</span>
+                <span class="font-orbitron text-neonBlue" id="mae">2.34</span>
+              </div>
+              <div class="w-full h-1.5 bg-darkBorder rounded-full">
+                <div class="h-1.5 bg-neonBlue rounded-full" id="mae-bar" style="width: 89%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-neonBlue/70 font-orbitron">RMSE</span>
+                <span class="font-orbitron text-neonBlue" id="rmse">3.12</span>
+              </div>
+              <div class="w-full h-1.5 bg-darkBorder rounded-full">
+                <div class="h-1.5 bg-neonBlue rounded-full" id="rmse-bar" style="width: 82%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-neonBlue/70 font-orbitron">R² 系数</span>
+                <span class="font-orbitron text-neonBlue" id="r2">0.97</span>
+              </div>
+              <div class="w-full h-1.5 bg-darkBorder rounded-full">
+                <div class="h-1.5 bg-neonBlue rounded-full" id="r2-bar" style="width: 97%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-neonBlue/70 font-orbitron">推理时间</span>
+                <span class="font-orbitron text-neonBlue" id="infer-time">12ms</span>
+              </div>
+              <div class="w-full h-1.5 bg-darkBorder rounded-full">
+                <div class="h-1.5 bg-neonBlue rounded-full" id="infer-bar" style="width: 95%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="glass-neon rounded-xl p-5 border border-neonBlue/50 lg:col-span-2 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neonBlue via-neonPurple to-neonPink"></div>
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+            <i class="fa fa-line-chart"></i> LSTM 预测趋势
+          </h2>
+          <div class="flex gap-2">
+          </div>
+        </div>
+        
+        <div class="h-[400px] relative">
+          <div class="absolute inset-0 bg-grid opacity-20"></div>
+          <canvas id="predict-chart"></canvas>
+          
+          <div class="absolute -- right-2 glass-neon px-3 py-1.5 rounded-lg text-xs font-orbitron">
+            <p class="mb-1 text-neonBlue">置信度等级</p>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-1">
+                <div class="w-2 h-2 rounded-full bg-neonGreen"></div>
+                <span>高置信度 (>90%)</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <div class="w-2 h-2 rounded-full bg-neonBlue"></div>
+                <span>中等置信度 (70%-90%)</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <div class="w-2 h-2 rounded-full bg-neonRed"></div>
+                <span>低置信度 (<70%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+      <div class="glass-neon rounded-xl p-5 border border-neonBlue/50 lg:col-span-2">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+            <i class="fa fa-history"></i> 数据日志
+          </h2>
+          <button class="text-xs text-neonBlue/70 hover:text-neonBlue transition">
+            <i class="fa fa-refresh"></i> 刷新日志
+          </button>
+        </div>
+        
+        <div class="bg-darkCard/80 rounded-lg overflow-hidden">
+          <div class="grid grid-cols-8 text-xs font-orbitron text-neonBlue/90 border-b border-neonBlue/30 p-2">
+            <div class="col-span-1">时间戳</div>
+            <div class="col-span-1">PARAM1</div>
+            <div class="col-span-1">PARAM2</div>
+            <div class="col-span-1">PARAM3</div>
+            <div class="col-span-1">PARAM4</div>
+            <div class="col-span-1">PARAM5</div>
+            <div class="col-span-1">PARAM6</div>
+            <div class="col-span-1">实际值</div>
+            <div class="col-span-1">预测值</div>
+          </div>
+          <div id="data-log-container" class="max-h-[200px] overflow-y-auto text-xs font-orbitron">
+          </div>
+        </div>
+      </div>
+      
+      <div class="glass-neon rounded-xl p-5 border border-neonBlue/50">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="font-orbitron text-lg text-neonBlue text-shadow-neon flex items-center gap-2">
+            <i class="fa fa-exclamation-triangle"></i> 告警面板
+          </h2>
+          <span class="text-xs text-neonRed animate-pulse-neon">3 条告警</span>
+        </div>
+        
+        <div class="space-y-3 max-h-[280px] overflow-y-auto">
+          <div class="bg-darkCard/80 rounded-lg p-3 border-l-4 border-neonRed">
+            <div class="flex justify-between items-center mb-1">
+              <p class="text-sm font-orbitron text-neonRed">实际值异常</p>
+              <span class="text-xs text-neonBlue/70">15:38:22</span>
+            </div>
+            <p class="text-xs text-gray-300">预测值超出阈值 (300) 10 分钟</p>
+          </div>
+          <div class="bg-darkCard/80 rounded-lg p-3 border-l-4 border-neonPink">
+            <div class="flex justify-between items-center mb-1">
+              <p class="text-sm font-orbitron text-neonPink">参数异常</p>
+              <span class="text-xs text-neonBlue/70">15:35:10</span>
+            </div>
+            <p class="text-xs text-gray-300">参数超出正常范围 5%</p>
+          </div>
+          <div class="bg-darkCard/80 rounded-lg p-3 border-l-4 border-neonGreen">
+            <div class="flex justify-between items-center mb-1">
+              <p class="text-sm font-orbitron text-neonGreen">模型优化</p>
+              <span class="text-xs text-neonBlue/70">15:30:05</span>
+            </div>
+            <p class="text-xs text-gray-300">LSTM 模型已更新，使用新训练数据</p>
+          </div>
+          <div class="bg-darkCard/80 rounded-lg p-3 border-l-4 border-neonBlue">
+            <div class="flex justify-between items-center mb-1">
+              <p class="text-sm font-orbitron text-neonBlue">API 连接</p>
+              <span class="text-xs text-neonBlue/70">15:25:48</span>
+            </div>
+            <p class="text-xs text-gray-300">成功连接到数据 API</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+
+  <footer class="glass-neon border-t border-neonBlue/30 py-4 mt-8 relative z-10">
+    <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-3">
+      <div class="text-center md:text-left">
+        <p class="text-xs text-neonBlue/70 font-orbitron">LSTM PREDICTION SYSTEM © 2025 | MODEL VERSION: v1.0</p>
+        <p class="text-xs text-gray-400 mt-1">If you have any questions, please contact Yiting.Xie@andritz.com</p>
+      </div>
+      
+      </div>
+    </div>
+  </footer>
+
+<script>
+
+// ===================== 全局配置与状态 =====================
+let predictChart;
+let updateInterval = 2000; 
+let apiConfig = {
+  url: '/api/data',  
+  method: 'GET',
+  postBody: '',
+  headers: '',
+  enabled: true,  
+  fieldMapping: {
+    param1: 'param1',
+    param2: 'param2',
+    param3: 'param3',
+    param4: 'param4',
+    param5: 'param5',
+    param6: 'param6',
+    value: 'next_value'  
+  }
+};
+let dataUnit = 'kW/h';
+let historicalData = []; 
+const MAX_HISTORY_COUNT = 30; 
+
+particlesJS('particles-js', {
+  particles: {
+    number: { value: 80, density: { enable: true, value_area: 800 } },
+    color: { value: '#00FFFF' },
+    shape: { type: 'circle' },
+    opacity: { value: 0.5, random: true },
+    size: { value: 3, random: true },
+    line_linked: { enable: true, distance: 150, color: '#00FFFF', opacity: 0.2, width: 1 },
+    move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
+  },
+  interactivity: {
+    detect_on: 'canvas',
+    events: {
+      onhover: { enable: true, mode: 'grab' },
+      onclick: { enable: true, mode: 'push' },
+      resize: true
+    },
+    modes: {
+      grab: { distance: 140, line_linked: { opacity: 0.5 } },
+      push: { particles_nb: 4 }
+    }
+  },
+  retina_detect: true
+});
+
+
+function updateCurrentTime() {
+  const now = new Date();
+  const timeStr = now.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).replace(/\//g, '-');
+  document.getElementById('current-time').textContent = timeStr;
+  return timeStr;
+}
+
+const generateMockData = () => {
+  const id = Math.floor(Math.random() * 1000000);
+  const timestamp = new Date().toISOString();
+  
+  const param1 = (180 + Math.random() * 20).toFixed(1);
+  const param2 = (40 + Math.random() * 10).toFixed(1);
+  const param3 = (75 + Math.random() * 10).toFixed(1);
+  const param4 = (20 + Math.random() * 8).toFixed(1);
+  const param5 = (150 + Math.random() * 15).toFixed(1);
+  const param6 = (85 + Math.random() * 10).toFixed(1);
+  
+  const baseValue = 
+    parseFloat(param1) * 0.8 + 
+    parseFloat(param2) * 1.2 + 
+    parseFloat(param3) * 0.5 + 
+    parseFloat(param4) * 2.1 + 
+    parseFloat(param5) * 0.3 + 
+    parseFloat(param6) * 0.7;
+  const realtimeValue = (baseValue + Math.random() * 10 - 5).toFixed(1);
+  
+  const errorRate = 0.005 + Math.random() * 0.015;
+  const predictValue = (parseFloat(realtimeValue) * (1 + errorRate * (Math.random() > 0.5 ? 1 : -1))).toFixed(1);
+  
+  return {
+    id,
+    timestamp,
+    [apiConfig.fieldMapping.param1]: param1,
+    [apiConfig.fieldMapping.param2]: param2,
+    [apiConfig.fieldMapping.param3]: param3,
+    [apiConfig.fieldMapping.param4]: param4,
+    [apiConfig.fieldMapping.param5]: param5,
+    [apiConfig.fieldMapping.param6]: param6,
+    [apiConfig.fieldMapping.value]: realtimeValue,
+    predictValue,
+    errorRate: (errorRate * 100).toFixed(2)
+  };
+};
+
+const fetchDataFromAPI = async () => {
+  try {
+    const url = apiConfig.url.trim();
+    if (!url) throw new Error('API地址不能为空');
+    
+    const requestConfig = {
+      method: apiConfig.method,
+      headers: apiConfig.headers ? JSON.parse(apiConfig.headers) : {},
+      credentials: 'same-origin'
+    };
+    
+    if (apiConfig.method === 'POST' && apiConfig.postBody) {
+      requestConfig.body = apiConfig.postBody;
+      if (!requestConfig.headers['Content-Type']) {
+        requestConfig.headers['Content-Type'] = 'application/json';
+      }
+    }
+
+    const response = await fetch(url, requestConfig);
+    if (!response.ok) throw new Error(`API请求失败: ${response.status}`);
+    
+    const apiData = await response.json();
+    
+    const params = apiData.realtime.params;
+    const prediction = apiData.prediction;
+    
+    const realtimeValue = Object.values(params).reduce((sum, val) => sum + val, 0) / 6; 
+    const errorRate = Math.abs((prediction.next_value - realtimeValue) / realtimeValue) * 100;
+    
+    return {
+      id: Date.now(),
+      timestamp: prediction.timestamp,
+      param1: params.param1.toFixed(1),
+      param2: params.param2.toFixed(1),
+      param3: params.param3.toFixed(1),
+      param4: params.param4.toFixed(1),
+      param5: params.param5.toFixed(1),
+      param6: params.param6.toFixed(1),
+      value: realtimeValue.toFixed(1),
+      predictValue: prediction.next_value.toFixed(1),
+      errorRate: errorRate.toFixed(2)
+    };
+  } catch (error) {
+    console.error('API数据获取失败:', error);
+    document.getElementById('api-status').textContent = `API: ERROR - ${error.message.slice(0, 20)}...`;
+    document.getElementById('api-status').classList.add('text-neonRed');
+    return generateMockData();
+  }
+};
+
+const getParamProgress = (paramValue, paramIndex) => {
+  const ranges = [
+    [150, 220], 
+    [30, 60],  
+    [60, 100],  
+    [15, 35],  
+    [120, 180], 
+    [70, 110]   
+  ];
+  const [min, max] = ranges[paramIndex];
+  const progress = ((parseFloat(paramValue) - min) / (max - min)) * 100;
+  return Math.max(0, Math.min(100, progress));
+};
+
+function initChart() {
+  const ctx = document.getElementById('predict-chart').getContext('2d');
+  
+  if (historicalData.length === 0) {
+    for (let i = 0; i < 10; i++) {
+      const mock = generateMockData();
+      historicalData.push({
+        time: new Date(Date.now() - (10 - i) * updateInterval).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+        value: parseFloat(mock.value),
+        predictValue: parseFloat(mock.predictValue)
+      });
+    }
+  }
+  
+  const labels = historicalData.map(item => item.time);
+  const actualData = historicalData.map(item => item.value);
+  const predictData = historicalData.map(item => item.predictValue);
+  
+  predictChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: `Actual Value (${dataUnit})`,
+          data: actualData,
+          borderColor: '#FF3131',
+          backgroundColor: 'rgba(255, 49, 49, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: false,
+          pointRadius: 3,
+          pointBackgroundColor: '#FF3131',
+          pointHoverRadius: 5
+        },
+        {
+          label: `LSTM Prediction (${dataUnit})`,
+          data: predictData,
+          borderColor: '#39FF14',
+          backgroundColor: 'rgba(57, 255, 20, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true,
+          pointRadius: 3,
+          pointBackgroundColor: '#39FF14',
+          pointHoverRadius: 5,
+          borderDash: [5, 5]
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: 'rgba(18, 25, 44, 0.9)',
+          borderColor: '#00FFFF',
+          borderWidth: 1,
+          padding: 10,
+          titleFont: { family: 'Orbitron', size: 11 },
+          bodyFont: { family: 'Orbitron', size: 10 },
+          callbacks: {
+            label: function(context) {
+              const label = context.dataset.label || '';
+              return `${label}: ${context.parsed.y.toFixed(1)} ${dataUnit}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(0, 255, 255, 0.1)',
+            borderColor: 'rgba(0, 255, 255, 0.3)'
+          },
+          ticks: {
+            color: 'rgba(0, 255, 255, 0.7)',
+            font: { family: 'Orbitron', size: 9 }
+          }
+        },
+        y: {
+          grid: {
+            color: 'rgba(0, 255, 255, 0.1)',
+            borderColor: 'rgba(0, 255, 255, 0.3)'
+          },
+          ticks: {
+            color: 'rgba(0, 255, 255, 0.7)',
+            font: { family: 'Orbitron', size: 9 },
+            callback: function(value) {
+              return `${value} ${dataUnit}`;
+            }
+          },
+          beginAtZero: false,
+          min: Math.min(...actualData, ...predictData) * 0.95,
+          max: Math.max(...actualData, ...predictData) * 1.05
+        }
+      },
+      animation: {
+        duration: 800,
+        easing: 'easeOutQuart'
+      }
+    }
+  });
+}
+
+function updateParamsPanel(data) {
+  const params = [
+    { key: 'param1', value: data.param1 },
+    { key: 'param2', value: data.param2 },
+    { key: 'param3', value: data.param3 },
+    { key: 'param4', value: data.param4 },
+    { key: 'param5', value: data.param5 },
+    { key: 'param6', value: data.param6 }
+  ];
+  
+  params.forEach((param, index) => {
+    const progress = getParamProgress(param.value, index);
+    const trend = Math.random() > 0.5 ? 'up' : 'down';
+    const trendRate = (Math.random() * 1.5 + 0.2).toFixed(1);
+    
+    document.getElementById(`${param.key}-value`).textContent = param.value;
+    document.getElementById(`${param.key}-bar`).style.width = `${progress}%`;
+    document.getElementById(`${param.key}-label`).textContent = apiConfig.fieldMapping[param.key].toUpperCase();
+    
+    const trendEl = document.querySelector(`#${param.key}-value + div + p`);
+    if (trend === 'up') {
+      trendEl.innerHTML = `<i class="fa fa-arrow-up"></i> ${trendRate}%`;
+      trendEl.className = 'text-xs text-neonGreen mt-1 flex items-center gap-1';
+    } else {
+      trendEl.innerHTML = `<i class="fa fa-arrow-down"></i> ${trendRate}%`;
+      trendEl.className = 'text-xs text-neonRed mt-1 flex items-center gap-1';
+    }
+  });
+  
+  document.getElementById('params-update-time').textContent = updateCurrentTime();
+}
+
+function updateRealtimeAndPredict(data) {
+  document.getElementById('realtime-value').textContent = data.value;
+  document.getElementById('realtime-timestamp').textContent = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+  document.getElementById('value-unit').textContent = dataUnit;
+  
+  document.getElementById('predict-value').textContent = data.predictValue;
+  document.getElementById('predict-unit').textContent = dataUnit;
+  document.getElementById('predict-error').textContent = `${data.errorRate}%`;
+  
+  const mae = (2.0 + Math.random() * 0.8).toFixed(2);
+  const rmse = (2.8 + Math.random() * 0.6).toFixed(2);
+  const r2 = (0.95 + Math.random() * 0.03).toFixed(2);
+  const inferTime = Math.floor(10 + Math.random() * 5);
+  
+  document.getElementById('mae').textContent = mae;
+  document.getElementById('rmse').textContent = rmse;
+  document.getElementById('r2').textContent = r2;
+  document.getElementById('infer-time').textContent = `${inferTime}ms`;
+  
+  document.getElementById('mae-bar').style.width = `${Math.max(70, 100 - parseFloat(mae) * 3)}%`;
+  document.getElementById('rmse-bar').style.width = `${Math.max(70, 100 - parseFloat(rmse) * 2.5)}%`;
+  document.getElementById('r2-bar').style.width = `${parseFloat(r2) * 100}%`;
+  document.getElementById('infer-bar').style.width = `${Math.max(80, 100 - inferTime)}%`;
+}
+
+function updateChart(data) {
+  const currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+  
+  historicalData.push({
+    time: currentTime,
+    value: parseFloat(data.value),
+    predictValue: parseFloat(data.predictValue)
+  });
+  
+  if (historicalData.length > MAX_HISTORY_COUNT) {
+    historicalData.shift();
+  }
+  
+  const labels = historicalData.map(item => item.time);
+  const actualData = historicalData.map(item => item.value);
+  const predictData = historicalData.map(item => item.predictValue);
+  
+  predictChart.data.labels = labels;
+  predictChart.data.datasets[0].data = actualData;
+  predictChart.data.datasets[1].data = predictData;
+  
+  const yMin = Math.min(...actualData, ...predictData) * 0.95;
+  const yMax = Math.max(...actualData, ...predictData) * 1.05;
+  predictChart.options.scales.y.min = yMin;
+  predictChart.options.scales.y.max = yMax;
+  
+  predictChart.update();
+}
+
+function updateDataLog(data) {
+  const logContainer = document.getElementById('data-log-container');
+  const logItem = document.createElement('div');
+  logItem.className = 'grid grid-cols-8 p-2 border-b border-neonBlue/10 hover:bg-neonBlue/5 transition';
+  logItem.innerHTML = `
+    <div class="col-span-1 text-neonBlue">${data.id.toString().slice(-4)}</div>
+    <div class="col-span-1 text-gray-300">${data.param1}</div>
+    <div class="col-span-1 text-gray-300">${data.param2}</div>
+    <div class="col-span-1 text-gray-300">${data.param3}</div>
+    <div class="col-span-1 text-gray-300">${data.param4}</div>
+    <div class="col-span-1 text-gray-300">${data.param5}</div>
+    <div class="col-span-1 text-gray-300">${data.param6}</div>
+    <div class="col-span-1 text-neonRed">${data.value}</div>
+  `;
+  
+  logContainer.insertBefore(logItem, logContainer.firstChild);
+  
+  if (logContainer.children.length > 15) {
+    logContainer.removeChild(logContainer.lastChild);
+  }
+}
+
+async function updateAllData() {
+  const data = apiConfig.enabled ? await fetchDataFromAPI() : generateMockData();
+  
+  updateParamsPanel(data);
+  updateRealtimeAndPredict(data);
+  updateChart(data);
+  updateDataLog(data);
+  
+  if (apiConfig.enabled) {
+    document.getElementById('data-source').textContent = 'DATA: API';
+    document.getElementById('api-status').textContent = 'API: ENABLED';
+    document.getElementById('api-status').className = 'text-xs font-orbitron text-neonGreen';
+  } else {
+    document.getElementById('data-source').textContent = 'DATA: MOCK';
+    document.getElementById('api-status').textContent = 'API: DISABLED';
+    document.getElementById('api-status').className = 'text-xs font-orbitron text-neonBlue/70';
+  }
+}
+
+document.getElementById('api-config-btn').addEventListener('click', () => {
+  document.getElementById('api-config-modal').classList.remove('hidden');
+  document.getElementById('api-url').value = apiConfig.url;
+  document.querySelector(`input[name="method"][value="${apiConfig.method}"]`).checked = true;
+  document.getElementById('api-post-body').value = apiConfig.postBody;
+  document.getElementById('api-headers').value = apiConfig.headers;
+  document.getElementById('use-api').checked = apiConfig.enabled;
+  
+  document.getElementById('param1-key').value = apiConfig.fieldMapping.param1;
+  document.getElementById('param2-key').value = apiConfig.fieldMapping.param2;
+  document.getElementById('param3-key').value = apiConfig.fieldMapping.param3;
+  document.getElementById('param4-key').value = apiConfig.fieldMapping.param4;
+  document.getElementById('param5-key').value = apiConfig.fieldMapping.param5;
+  document.getElementById('param6-key').value = apiConfig.fieldMapping.param6;
+  document.getElementById('value-key').value = apiConfig.fieldMapping.value;
+  
+  document.getElementById('post-body-container').classList.toggle('hidden', apiConfig.method !== 'POST');
+});
+
+document.getElementById('close-modal').addEventListener('click', () => {
+  document.getElementById('api-config-modal').classList.add('hidden');
+});
+
+document.querySelectorAll('input[name="method"]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    const isPost = e.target.value === 'POST';
+    document.getElementById('post-body-container').classList.toggle('hidden', !isPost);
+  });
+});
+
+document.getElementById('save-api-config').addEventListener('click', () => {
+  apiConfig = {
+    url: document.getElementById('api-url').value.trim(),
+    method: document.querySelector('input[name="method"]:checked').value,
+    postBody: document.getElementById('api-post-body').value.trim(),
+    headers: document.getElementById('api-headers').value.trim(),
+    enabled: document.getElementById('use-api').checked,
+    fieldMapping: {
+      param1: document.getElementById('param1-key').value.trim() || 'param1',
+      param2: document.getElementById('param2-key').value.trim() || 'param2',
+      param3: document.getElementById('param3-key').value.trim() || 'param3',
+      param4: document.getElementById('param4-key').value.trim() || 'param4',
+      param5: document.getElementById('param5-key').value.trim() || 'param5',
+      param6: document.getElementById('param6-key').value.trim() || 'param6',
+      value: document.getElementById('value-key').value.trim() || 'value'
+    }
+  };
+  
+  alert('API配置保存成功！');
+  document.getElementById('api-config-modal').classList.add('hidden');
+  
+  updateAllData();
+});
+
+document.getElementById('test-api').addEventListener('click', async () => {
+  const btn = document.getElementById('test-api');
+  btn.textContent = 'TESTING...';
+  btn.disabled = true;
+  
+  try {
+    const originalEnabled = apiConfig.enabled;
+    apiConfig.enabled = true;
+    
+    await fetchDataFromAPI();
+    alert('API连接测试成功！');
+    
+    apiConfig.enabled = originalEnabled;
+  } catch (error) {
+    alert(`API连接测试失败: ${error.message}`);
+  } finally {
+    btn.textContent = 'TEST CONNECTION';
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('api-config-modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('api-config-modal')) {
+    document.getElementById('api-config-modal').classList.add('hidden');
+  }
+});
+
+window.addEventListener('load', () => {
+  updateCurrentTime();
+  setInterval(updateCurrentTime, 1000);
+  
+  initChart();
+  
+  updateAllData();
+  
+  setInterval(updateAllData, updateInterval);
+});
+</script>

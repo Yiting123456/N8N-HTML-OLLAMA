@@ -1,0 +1,809 @@
+{
+  "meta": {
+    "tag": 4,
+    "started_at": "2026-01-02T07:35:16Z",
+    "error": "HTTPConnectionPool(host='127.0.0.1', port=11434): Read timed out. (read timeout=120)"
+  },
+  "input_sample": [
+    {
+      "time": null,
+      "value": 65.26934
+    },
+    {
+      "time": null,
+      "value": 65.2698
+    },
+    {
+      "time": null,
+      "value": 65.27028
+    },
+    {
+      "time": null,
+      "value": 65.270485
+    },
+    {
+      "time": null,
+      "value": 65.26563
+    },
+    {
+      "time": null,
+      "value": 65.262794
+    },
+    {
+      "time": null,
+      "value": 65.26438
+    },
+    {
+      "time": null,
+      "value": 65.26741
+    },
+    {
+      "time": null,
+      "value": 65.26829
+    },
+    {
+      "time": null,
+      "value": 65.269936
+    },
+    {
+      "time": null,
+      "value": 65.27092
+    },
+    {
+      "time": null,
+      "value": 65.270676
+    },
+    {
+      "time": null,
+      "value": 65.27007
+    },
+    {
+      "time": null,
+      "value": 65.2707
+    },
+    {
+      "time": null,
+      "value": 65.27088
+    },
+    {
+      "time": null,
+      "value": 65.27085
+    },
+    {
+      "time": null,
+      "value": 65.27097
+    },
+    {
+      "time": null,
+      "value": 65.27014
+    },
+    {
+      "time": null,
+      "value": 65.26397
+    },
+    {
+      "time": null,
+      "value": 65.26257
+    },
+    {
+      "time": null,
+      "value": 65.26302
+    },
+    {
+      "time": null,
+      "value": 65.26405
+    },
+    {
+      "time": null,
+      "value": 65.26607
+    },
+    {
+      "time": null,
+      "value": 65.2667
+    },
+    {
+      "time": null,
+      "value": 65.268265
+    },
+    {
+      "time": null,
+      "value": 65.27
+    },
+    {
+      "time": null,
+      "value": 65.2687
+    },
+    {
+      "time": null,
+      "value": 65.2628
+    },
+    {
+      "time": null,
+      "value": 65.262344
+    },
+    {
+      "time": null,
+      "value": 65.26282
+    },
+    {
+      "time": null,
+      "value": 65.26312
+    },
+    {
+      "time": null,
+      "value": 65.263405
+    },
+    {
+      "time": null,
+      "value": 65.264145
+    },
+    {
+      "time": null,
+      "value": 65.26563
+    },
+    {
+      "time": null,
+      "value": 65.26662
+    },
+    {
+      "time": null,
+      "value": 65.26713
+    },
+    {
+      "time": null,
+      "value": 65.26755
+    },
+    {
+      "time": null,
+      "value": 65.26811
+    },
+    {
+      "time": null,
+      "value": 65.26841
+    },
+    {
+      "time": null,
+      "value": 65.26865
+    },
+    {
+      "time": null,
+      "value": 65.26837
+    },
+    {
+      "time": null,
+      "value": 65.26876
+    },
+    {
+      "time": null,
+      "value": 65.269615
+    },
+    {
+      "time": null,
+      "value": 65.264755
+    },
+    {
+      "time": null,
+      "value": 65.26361
+    },
+    {
+      "time": null,
+      "value": 65.263855
+    },
+    {
+      "time": null,
+      "value": 65.26411
+    },
+    {
+      "time": null,
+      "value": 65.26433
+    },
+    {
+      "time": null,
+      "value": 65.264565
+    },
+    {
+      "time": null,
+      "value": 65.26484
+    },
+    {
+      "time": null,
+      "value": 65.26625
+    },
+    {
+      "time": null,
+      "value": 65.26893
+    },
+    {
+      "time": null,
+      "value": 65.27188
+    },
+    {
+      "time": null,
+      "value": 65.27272
+    },
+    {
+      "time": null,
+      "value": 65.273026
+    },
+    {
+      "time": null,
+      "value": 65.27328
+    },
+    {
+      "time": null,
+      "value": 65.27075
+    },
+    {
+      "time": null,
+      "value": 65.264915
+    },
+    {
+      "time": null,
+      "value": 65.26457
+    },
+    {
+      "time": null,
+      "value": 65.26502
+    },
+    {
+      "time": null,
+      "value": 65.26474
+    },
+    {
+      "time": null,
+      "value": 65.26442
+    },
+    {
+      "time": null,
+      "value": 65.26486
+    },
+    {
+      "time": null,
+      "value": 65.2651
+    },
+    {
+      "time": null,
+      "value": 65.26557
+    },
+    {
+      "time": null,
+      "value": 65.266174
+    },
+    {
+      "time": null,
+      "value": 65.26668
+    },
+    {
+      "time": null,
+      "value": 65.26697
+    },
+    {
+      "time": null,
+      "value": 65.267525
+    },
+    {
+      "time": null,
+      "value": 65.2685
+    },
+    {
+      "time": null,
+      "value": 65.269714
+    },
+    {
+      "time": null,
+      "value": 65.27034
+    },
+    {
+      "time": null,
+      "value": 65.26989
+    },
+    {
+      "time": null,
+      "value": 65.27004
+    },
+    {
+      "time": null,
+      "value": 65.270294
+    },
+    {
+      "time": null,
+      "value": 65.27053
+    },
+    {
+      "time": null,
+      "value": 65.2718
+    },
+    {
+      "time": null,
+      "value": 65.273994
+    },
+    {
+      "time": null,
+      "value": 65.27326
+    },
+    {
+      "time": null,
+      "value": 65.2684
+    },
+    {
+      "time": null,
+      "value": 65.2677
+    },
+    {
+      "time": null,
+      "value": 65.26965
+    },
+    {
+      "time": null,
+      "value": 65.27084
+    },
+    {
+      "time": null,
+      "value": 65.27443
+    },
+    {
+      "time": null,
+      "value": 65.27541
+    },
+    {
+      "time": null,
+      "value": 65.27517
+    },
+    {
+      "time": null,
+      "value": 65.27468
+    },
+    {
+      "time": null,
+      "value": 65.27306
+    },
+    {
+      "time": null,
+      "value": 65.26709
+    },
+    {
+      "time": null,
+      "value": 65.266495
+    },
+    {
+      "time": null,
+      "value": 65.26925
+    },
+    {
+      "time": null,
+      "value": 65.2722
+    },
+    {
+      "time": null,
+      "value": 65.27342
+    },
+    {
+      "time": null,
+      "value": 65.27361
+    },
+    {
+      "time": null,
+      "value": 65.27388
+    },
+    {
+      "time": null,
+      "value": 65.2737
+    },
+    {
+      "time": null,
+      "value": 65.273415
+    },
+    {
+      "time": null,
+      "value": 65.27346
+    },
+    {
+      "time": null,
+      "value": 65.27368
+    },
+    {
+      "time": null,
+      "value": 65.27398
+    },
+    {
+      "time": null,
+      "value": 65.2697
+    },
+    {
+      "time": null,
+      "value": 65.26533
+    },
+    {
+      "time": null,
+      "value": 65.26562
+    },
+    {
+      "time": null,
+      "value": 65.26583
+    },
+    {
+      "time": null,
+      "value": 65.26536
+    },
+    {
+      "time": null,
+      "value": 65.26545
+    },
+    {
+      "time": null,
+      "value": 65.26635
+    },
+    {
+      "time": null,
+      "value": 65.267876
+    },
+    {
+      "time": null,
+      "value": 65.26966
+    },
+    {
+      "time": null,
+      "value": 65.27032
+    },
+    {
+      "time": null,
+      "value": 65.272575
+    },
+    {
+      "time": null,
+      "value": 65.27493
+    },
+    {
+      "time": null,
+      "value": 65.27522
+    },
+    {
+      "time": null,
+      "value": 65.27475
+    },
+    {
+      "time": null,
+      "value": 65.274734
+    },
+    {
+      "time": null,
+      "value": 65.27091
+    },
+    {
+      "time": null,
+      "value": 65.26687
+    },
+    {
+      "time": null,
+      "value": 65.26649
+    },
+    {
+      "time": null,
+      "value": 65.26679
+    },
+    {
+      "time": null,
+      "value": 65.26724
+    },
+    {
+      "time": null,
+      "value": 65.26775
+    },
+    {
+      "time": null,
+      "value": 65.26773
+    },
+    {
+      "time": null,
+      "value": 65.26712
+    },
+    {
+      "time": null,
+      "value": 65.26737
+    },
+    {
+      "time": null,
+      "value": 65.26859
+    },
+    {
+      "time": null,
+      "value": 65.272095
+    },
+    {
+      "time": null,
+      "value": 65.26934
+    },
+    {
+      "time": null,
+      "value": 65.260254
+    },
+    {
+      "time": null,
+      "value": 65.26541
+    },
+    {
+      "time": null,
+      "value": 65.26799
+    },
+    {
+      "time": null,
+      "value": 65.26892
+    },
+    {
+      "time": null,
+      "value": 65.26599
+    },
+    {
+      "time": null,
+      "value": 65.26019
+    },
+    {
+      "time": null,
+      "value": 65.26169
+    },
+    {
+      "time": null,
+      "value": 65.26235
+    },
+    {
+      "time": null,
+      "value": 65.2626
+    },
+    {
+      "time": null,
+      "value": 65.26396
+    },
+    {
+      "time": null,
+      "value": 65.26639
+    },
+    {
+      "time": null,
+      "value": 65.26673
+    },
+    {
+      "time": null,
+      "value": 65.266266
+    },
+    {
+      "time": null,
+      "value": 65.26638
+    },
+    {
+      "time": null,
+      "value": 65.26394
+    },
+    {
+      "time": null,
+      "value": 65.25921
+    },
+    {
+      "time": null,
+      "value": 65.25908
+    },
+    {
+      "time": null,
+      "value": 65.25935
+    },
+    {
+      "time": null,
+      "value": 65.2596
+    },
+    {
+      "time": null,
+      "value": 65.26063
+    },
+    {
+      "time": null,
+      "value": 65.26231
+    },
+    {
+      "time": null,
+      "value": 65.263054
+    },
+    {
+      "time": null,
+      "value": 65.264946
+    },
+    {
+      "time": null,
+      "value": 65.265945
+    },
+    {
+      "time": null,
+      "value": 65.267586
+    },
+    {
+      "time": null,
+      "value": 65.27013
+    },
+    {
+      "time": null,
+      "value": 65.27054
+    },
+    {
+      "time": null,
+      "value": 65.27078
+    },
+    {
+      "time": null,
+      "value": 65.27051
+    },
+    {
+      "time": null,
+      "value": 65.26712
+    },
+    {
+      "time": null,
+      "value": 65.26169
+    },
+    {
+      "time": null,
+      "value": 65.26194
+    },
+    {
+      "time": null,
+      "value": 65.26249
+    },
+    {
+      "time": null,
+      "value": 65.2628
+    },
+    {
+      "time": null,
+      "value": 65.26396
+    },
+    {
+      "time": null,
+      "value": 65.265884
+    },
+    {
+      "time": null,
+      "value": 65.26615
+    },
+    {
+      "time": null,
+      "value": 65.26582
+    },
+    {
+      "time": null,
+      "value": 65.26822
+    },
+    {
+      "time": null,
+      "value": 65.26766
+    },
+    {
+      "time": null,
+      "value": 65.2638
+    },
+    {
+      "time": null,
+      "value": 65.26607
+    },
+    {
+      "time": null,
+      "value": 65.2668
+    },
+    {
+      "time": null,
+      "value": 65.2688
+    },
+    {
+      "time": null,
+      "value": 65.27048
+    },
+    {
+      "time": null,
+      "value": 65.27061
+    },
+    {
+      "time": null,
+      "value": 65.26956
+    },
+    {
+      "time": null,
+      "value": 65.263855
+    },
+    {
+      "time": null,
+      "value": 65.26213
+    },
+    {
+      "time": null,
+      "value": 65.26386
+    },
+    {
+      "time": null,
+      "value": 65.26672
+    },
+    {
+      "time": null,
+      "value": 65.26882
+    },
+    {
+      "time": null,
+      "value": 65.26925
+    },
+    {
+      "time": null,
+      "value": 65.26467
+    },
+    {
+      "time": null,
+      "value": 65.26132
+    },
+    {
+      "time": null,
+      "value": 65.26165
+    },
+    {
+      "time": null,
+      "value": 65.26149
+    },
+    {
+      "time": null,
+      "value": 65.26193
+    },
+    {
+      "time": null,
+      "value": 65.26417
+    },
+    {
+      "time": null,
+      "value": 65.26587
+    },
+    {
+      "time": null,
+      "value": 65.26613
+    },
+    {
+      "time": null,
+      "value": 65.266304
+    },
+    {
+      "time": null,
+      "value": 65.26637
+    },
+    {
+      "time": null,
+      "value": 65.2666
+    },
+    {
+      "time": null,
+      "value": 65.266495
+    },
+    {
+      "time": null,
+      "value": 65.26589
+    },
+    {
+      "time": null,
+      "value": 65.265396
+    },
+    {
+      "time": null,
+      "value": 65.26578
+    },
+    {
+      "time": null,
+      "value": 65.26615
+    },
+    {
+      "time": null,
+      "value": 65.26632
+    },
+    {
+      "time": null,
+      "value": 65.266495
+    },
+    {
+      "time": null,
+      "value": 65.266945
+    },
+    {
+      "time": null,
+      "value": 65.26727
+    }
+  ]
+}

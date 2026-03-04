@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Yiting·AI（本地模型 gemma3:4b）</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg1:#061226;--bg2:#021022;--neon-1:#2ff7ff;--neon-2:#8a6cff;--card-w:820px}
+    *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:linear-gradient(180deg,var(--bg1),var(--bg2));font-family:Inter,system-ui;color:#eafcff;display:flex;align-items:center;justify-content:center}
+    .chat-card{width:clamp(320px,86vw,var(--card-w));max-height:88vh;border-radius:14px;background:rgba(255,255,255,0.02);backdrop-filter:blur(8px);box-shadow:0 10px 30px rgba(2,6,23,0.7);overflow:hidden;display:flex;flex-direction:column}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.02)}
+    .messages{padding:18px;display:flex;flex-direction:column;gap:12px;overflow:auto;flex:1}
+    .msg{max-width:78%;padding:12px 14px;border-radius:12px;font-size:14px;line-height:1.45;box-shadow:0 6px 20px rgba(2,6,23,0.5);word-wrap:break-word}
+    .msg.user{margin-left:auto;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(56,255,195,0.08);color:#dffefa}
+    .msg.bot{background:linear-gradient(135deg,rgba(47,247,255,0.06),rgba(138,108,255,0.04));border:1px solid rgba(138,108,255,0.12);color:#eafcff;font-family:JetBrains Mono,monospace;font-size:13.75px}
+    .composer{display:flex;gap:12px;padding:12px;border-top:1px solid rgba(255,255,255,0.02);align-items:flex-end}
+    textarea{width:100%;min-height:42px;max-height:160px;resize:none;padding:12px 14px;border-radius:10px;background:rgba(3,8,20,0.5);border:1px solid rgba(255,255,255,0.02);color:#eafcff;outline:none}
+    .send{padding:10px 16px;border-radius:10px;background:linear-gradient(90deg,var(--neon-1),var(--neon-2));color:#021022;font-weight:700;border:0;cursor:pointer}
+    .typing{display:flex;gap:6px;align-items:center}
+    .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.12);animation: blink 1.2s infinite}
+    @keyframes blink{0%{transform:translateY(0);opacity:0.22}50%{transform:translateY(-4px);opacity:1;background:var(--neon-1)}100%{transform:translateY(0);opacity:0.22}}
+    .meta { font-size:12px; color: rgba(255,255,255,0.6); }
+  </style>
+</head>
+<body>
+  <main class="chat-card" role="main" aria-label="聊天机器人">
+    <header class="card-header">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--neon-1),var(--neon-2));"></div>
+        <div>
+          <div style="font-weight:800;letter-spacing:.6px;color:#9af0ff">Yiting·AI</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6)">本地模型（不告诉你）</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="clearBtn" title="清空">✖</button>
+        <button id="backBtn" title="返回首页" onclick="location.href='/'">← 首页</button>
+      </div>
+    </header>
+
+    <section id="messages" class="messages" role="log" aria-live="polite"></section>
+
+    <form id="composer" class="composer" role="form" aria-label="发送消息">
+      <div style="flex:1">
+        <textarea id="input" rows="1" placeholder="输入消息，回车发送（Shift+Enter 换行）"></textarea>
+        <div class="meta" style="margin-top:6px">注意：消息只会通过后端代理到本地，不会到云端。</div>
+      </div>
+      <div class="actions">
+        <button type="button" id="sendBtn" class="send">发送</button>
+      </div>
+    </form>
+    <footer style="padding:10px 16px;font-size:12px;color:rgba(255,255,255,0.6)">按 Enter 发送 • 后端代理到本地</footer>
+  </main>
+
+<script>
+(() => {
+  const messagesEl = document.getElementById('messages');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
+  function addMessage(content, who='bot') {
+    const el = document.createElement('div');
+    el.className = 'msg ' + who;
+    el.textContent = content;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  function addTyping() {
+    const el = document.createElement('div');
+    el.className = 'msg bot typing';
+    el.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  async function askOllama(prompt) {
+    const botEl = addMessage('', 'bot');
+    const typingEl = addTyping();
+    try {
+      const payload = {
+        model: "gemma3:4b",
+        prompt: prompt,
+        max_tokens: 1024,
+        temperature: 0.2,
+        stream: true
+      };
+
+      const res = await fetch('/api/ollama/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>res.statusText);
+        throw new Error('HTTP ' + res.status + ' ' + txt);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      typingEl.remove();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const obj = JSON.parse(line);
+          
+            const text =
+              obj.response ||
+              obj.text ||
+              obj.token ||
+              (obj.output && obj.output[0]?.content?.[0]?.text) ||
+              (obj.choices && obj.choices[0] && (obj.choices[0].delta?.content || obj.choices[0].text)) ||
+              '';
+            if (text) {
+              botEl.textContent += text;
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+          } catch (e) {
+          
+            botEl.textContent += line;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+        }
+      }
+
+      if (buffer.trim()) {
+        try {
+          const obj = JSON.parse(buffer);
+          const text = obj.response || obj.text || '';
+          if (text) botEl.textContent += text;
+        } catch (e) {
+          botEl.textContent += buffer;
+        }
+      }
+    } catch (err) {
+      typingEl.remove();
+      botEl.textContent = '抱歉，模型调用失败：' + (err.message || err);
+      console.error(err);
+    }
+  }
+
+  function sendQuestion() {
+    const txt = input.value.trim();
+    if (!txt) return;
+    addMessage(txt, 'user');
+    input.value = '';
+    askOllama(txt);
+  }
+
+  sendBtn.addEventListener('click', sendQuestion);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendQuestion();
+    }
+  });
+  clearBtn.addEventListener('click', () => {
+    messagesEl.innerHTML = '';
+    addMessage('对话已清空。', 'bot');
+  });
+
+  addMessage('你好，我是 Yiting·AI —— 已连接本地模型（通过后端代理）。', 'bot');
+})();
+</script>
+</body>
+</html>

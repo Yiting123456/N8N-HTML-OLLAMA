@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API 诊断面板</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      background: #0a0e27; 
+      color: #e0f0ff; 
+      font-family: 'Monaco', 'Courier New', monospace;
+      margin: 0; 
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #2ff7ff; text-align: center; margin-bottom: 30px; }
+    .section { 
+      background: rgba(255,255,255,0.05); 
+      border: 1px solid #2ff7ff; 
+      border-radius: 8px; 
+      padding: 20px; 
+      margin-bottom: 20px;
+    }
+    .section h2 { color: #8a6cff; margin-top: 0; }
+    .status { 
+      padding: 10px; 
+      border-radius: 4px; 
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    .status.success { background: rgba(111, 255, 176, 0.2); color: #6fffb0; }
+    .status.error { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+    .status.info { background: rgba(47, 247, 255, 0.2); color: #2ff7ff; }
+    .data-display { 
+      background: rgba(0,0,0,0.3); 
+      padding: 15px; 
+      border-radius: 4px;
+      margin: 10px 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    button {
+      background: #8a6cff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px 5px 5px 0;
+      font-family: inherit;
+    }
+    button:hover { background: #a08dff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Yiting AI - API 诊断面板</h1>
+    
+    <div class="section">
+      <h2>1️⃣ 后端连接测试</h2>
+      <button onclick="testBackendConnection()">测试 /api/metris/params</button>
+      <div id="backend-status"></div>
+      <div id="backend-data" class="data-display"></div>
+    </div>
+
+    <div class="section">
+      <h2>2️⃣ 前端数据处理</h2>
+      <button onclick="testFrontendFetch()">模拟前端 API 调用</button>
+      <div id="frontend-status"></div>
+      <div id="frontend-data" class="data-display"></div>
+    </div>
+
+    <div class="section">
+      <h2>3️⃣ HTML 元素检查</h2>
+      <button onclick="checkHTMLElements()">检查页面元素</button>
+      <div id="elements-status"></div>
+    </div>
+
+    <div class="section">
+      <h2>4️⃣ 实时数据监视</h2>
+      <button onclick="startMonitoring()">开始监视（5秒）</button>
+      <div id="monitor-status"></div>
+      <div id="monitor-data" class="data-display"></div>
+    </div>
+  </div>
+
+  <script>
+    async function testBackendConnection() {
+      const statusDiv = document.getElementById('backend-status');
+      const dataDiv = document.getElementById('backend-data');
+      statusDiv.textContent = '测试中...';
+      dataDiv.textContent = '';
+
+      try {
+        const response = await fetch('/api/metris/params');
+        const data = await response.json();
+        
+        statusDiv.innerHTML = `<div class="status success">✓ 后端连接成功 (状态码: ${response.status})</div>`;
+        dataDiv.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        statusDiv.innerHTML = `<div class="status error">✗ 后端连接失败: ${err.message}</div>`;
+        dataDiv.textContent = err.toString();
+      }
+    }
+
+    async function testFrontendFetch() {
+      const statusDiv = document.getElementById('frontend-status');
+      const dataDiv = document.getElementById('frontend-data');
+      statusDiv.textContent = '处理中...';
+      dataDiv.textContent = '';
+
+      try {
+        const response = await fetch('/api/metris/params');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const apiData = await response.json();
+        console.log('原始 API 响应:', apiData);
+
+        // 使用与 index.html 相同的逻辑
+        if (apiData.realtime && apiData.realtime.params && apiData.prediction) {
+          const params = apiData.realtime.params;
+          const prediction = apiData.prediction;
+          
+          const paramValues = Object.values(params).map(v => parseFloat(v) || 0);
+          const realtimeValue = paramValues.reduce((sum, val) => sum + val, 0) / 6;
+          const errorRate = Math.abs((prediction.next_value - realtimeValue) / Math.max(1, realtimeValue)) * 100;
+
+          const processedData = {
+            id: Date.now(),
+            timestamp: prediction.timestamp,
+            param1: parseFloat(params.param1 || 0).toFixed(1),
+            param2: parseFloat(params.param2 || 0).toFixed(1),
+            param3: parseFloat(params.param3 || 0).toFixed(1),
+            param4: parseFloat(params.param4 || 0).toFixed(1),
+            param5: parseFloat(params.param5 || 0).toFixed(1),
+            param6: parseFloat(params.param6 || 0).toFixed(1),
+            value: realtimeValue.toFixed(1),
+            predictValue: parseFloat(prediction.next_value).toFixed(1),
+            errorRate: errorRate.toFixed(2)
+          };
+
+          statusDiv.innerHTML = '<div class="status success">✓ 前端数据处理成功</div>';
+          dataDiv.textContent = JSON.stringify(processedData, null, 2);
+        } else {
+          statusDiv.innerHTML = '<div class="status error">✗ API 数据结构不正确</div>';
+          dataDiv.textContent = JSON.stringify(apiData, null, 2);
+        }
+      } catch (err) {
+        statusDiv.innerHTML = `<div class="status error">✗ 前端处理失败: ${err.message}</div>`;
+        dataDiv.textContent = err.toString();
+      }
+    }
+
+    function checkHTMLElements() {
+      const statusDiv = document.getElementById('elements-status');
+      const elementIds = ['param1-value', 'param2-value', 'param3-value', 'param4-value', 'param5-value', 'param6-value',
+                         'realtime-value', 'predict-chart', 'data-log-container'];
+      
+      let html = '<div class="status info">检查结果:</div>';
+      let missing = 0;
+      elementIds.forEach(id => {
+        const elem = document.getElementById(id);
+        if (elem) {
+          html += `<div class="status success">✓ ${id}</div>`;
+        } else {
+          html += `<div class="status error">✗ ${id} - 未找到</div>`;
+          missing++;
+        }
+      });
+      
+      statusDiv.innerHTML = html;
+      if (missing === 0) {
+        statusDiv.innerHTML += '<div class="status success">✓ 所有必需的 HTML 元素都存在</div>';
+      }
+    }
+
+    async function startMonitoring() {
+      const statusDiv = document.getElementById('monitor-status');
+      const dataDiv = document.getElementById('monitor-data');
+      statusDiv.innerHTML = '<div class="status info">监视中... (每秒获取一次，共5次)</div>';
+      dataDiv.textContent = '';
+
+      let results = [];
+      for (let i = 0; i < 5; i++) {
+        try {
+          const response = await fetch('/api/metris/params');
+          const data = await response.json();
+          results.push({
+            time: new Date().toLocaleTimeString('zh-CN'),
+            param1: data.realtime.params.param1,
+            param4: data.realtime.params.param4,
+            predictValue: data.prediction.next_value
+          });
+        } catch (err) {
+          results.push({ error: err.message });
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      statusDiv.innerHTML = '<div class="status success">✓ 监视完成</div>';
+      dataDiv.textContent = JSON.stringify(results, null, 2);
+    }
+
+    // 页面加载时自动检查
+    window.addEventListener('load', () => {
+      checkHTMLElements();
+    });
+  </script>
+</body>
+</html>

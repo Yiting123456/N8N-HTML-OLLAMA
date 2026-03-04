@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>高科技感 Chatbot</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="scene">
+    <canvas id="bgCanvas" aria-hidden="true"></canvas>
+
+    <main class="chat-card" role="main" aria-label="聊天机器人">
+      <header class="card-header">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div class="title">
+            <div class="name">Neon·AI</div>
+            <div class="subtitle">未来助手</div>
+          </div>
+        </div>
+        <div class="controls">
+          <button id="clearBtn" title="清空" aria-label="清空聊天">✖</button>
+          <button id="ttsToggle" title="语音" aria-pressed="false" aria-label="切换语音">🔊</button>
+        </div>
+      </header>
+
+      <section id="messages" class="messages" role="log" aria-live="polite"></section>
+
+      <form id="composer" class="composer" role="form" aria-label="发送消息">
+        <div class="input-wrap">
+          <textarea id="input" rows="1" placeholder="输入消息，回车发送（Shift+Enter 换行）" aria-label="输入消息"></textarea>
+        </div>
+        <div class="actions">
+          <button type="button" id="sendBtn" class="send" aria-label="发送">发送</button>
+        </div>
+      </form>
+      <footer class="card-footer">按 <kbd>Enter</kbd> 发送 • 支持语音朗读</footer>
+    </main>
+
+    <div class="floating-hud" aria-hidden="true">
+      <div class="pulse"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

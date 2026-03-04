@@ -1,0 +1,25 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; }
+  .modal   { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+             width:360px; background:#fff; border-radius:10px; padding:16px;
+             box-shadow:0 10px 36px rgba(0,0,0,.2); display:none; }
+  .open .overlay, .open .modal { display:block; }
+  .btn { padding:8px 12px; background:#0ea5e9; color:#fff; border:0; border-radius:6px; }
+</style>
+</head>
+<body>
+  <button class="btn" onclick="document.body.classList.add('open')">打开弹窗</button>
+
+  <div class="overlay" onclick="document.body.classList.remove('open')"></div>
+  <div class="modal">
+    <h3>弹窗标题</h3>
+    <p>这是内容。点击外部遮罩或下方按钮关闭。</p>
+    <button class="btn" onclick="document.body.classList.remove('open')">关闭</button>
+  </div>
+</body>
+</html>

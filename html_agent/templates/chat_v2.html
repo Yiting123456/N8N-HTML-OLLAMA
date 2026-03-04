@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Yiting·AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono&family=Orbitron:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            neonBlue: '#00FFFF',    
+            neonPurple: '#9D00FF',  
+            neonPink: '#FF00FF',    
+            neonGreen: '#39FF14',  
+            neonRed: '#FF3131',     
+            darkBg: '#0A0E17',      
+            darkCard: '#12192C',   
+            darkBorder: '#2D3748',  
+          },
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            orbitron: ['Orbitron', 'sans-serif'], 
+          },
+          animation: {
+            'pulse-neon': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'glow': 'glow 2s ease-in-out infinite alternate',
+            'float': 'float 6s ease-in-out infinite',
+            'scan': 'scan 3s linear infinite',
+          },
+          keyframes: {
+            glow: {
+              '0%': { boxShadow: '0 0 5px #00FFFF, 0 0 10px #00FFFF' },
+              '100%': { boxShadow: '0 0 10px #00FFFF, 0 0 20px #00FFFF, 0 0 30px #00FFFF' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            scan: {
+              '0%': { transform: 'translateY(-100%)' },
+              '100%': { transform: 'translateY(100%)' },
+            }
+          }
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .text-shadow-neon {
+        text-shadow: 0 0 5px #00FFFF, 0 0 10px #00FFFF;
+      }
+      .border-glow {
+        box-shadow: 0 0 5px #00FFFF, 0 0 10px rgba(0, 255, 255, 0.3);
+      }
+      .bg-grid {
+        background-image: 
+          linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      .scan-line {
+        background: linear-gradient(90deg, rgba(57, 255, 20, 0.1), rgba(57, 255, 20, 0.5), rgba(57, 255, 20, 0.1));
+        height: 2px;
+        width: 100%;
+        position: absolute;
+        left: 0;
+        animation: scan 3s linear infinite;
+      }
+      .glass-neon {
+        background: rgba(18, 25, 44, 0.7);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+      }
+      .btn-label { display: inline; }
+      @media (max-width: 1400px) {
+        .card-header .btn-label { display: none; }
+        .card-header { gap: 8px; }
+        #agent-id-input { width: 14rem; }
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-darkBg text-white min-h-screen overflow-hidden bg-grid">
+  <div id="particles-js" class="fixed inset-0 z-0 opacity-30"></div>
+  <main class="chat-card glass-neon mx-auto my-4 w-[90vw] max-w-6xl" role="main" aria-label="聊天机器人">
+    <header class="card-header border-b border-neonBlue/30 p-4 flex flex-wrap justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-darkCard flex items-center justify-center border border-neonBlue animate-glow">
+          <i class="fa fa-brain text-neonBlue text-xl"></i>
+        </div>
+        <div>
+          <div class="text-xl font-orbitron font-bold text-neonBlue text-shadow-neon">Yiting·AI</div>
+          <div class="text-xs text-neonBlue/70 -mt-1">本地模型（不告诉你）</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 mt-2 sm:mt-0 flex-wrap">
+        <div class="flex items-center gap-2">
+          <input id="agent-id-input" type="text" placeholder="Tag ID 或 逗号分隔 IDs" 
+            class="w-full sm:w-96 px-3 py-2 bg-darkCard border border-neonBlue/30 rounded-lg focus:outline-none focus:border-neonBlue text-white font-orbitron text-sm">
+          <input id="agent-start" type="hidden">
+          <input id="agent-end" type="hidden">
+          <button id="agent-range-btn" title="选择时间范围" class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonBlue transition">
+            <i class="fa fa-calendar text-neonBlue"></i>
+          </button>
+          <span id="agent-range-label" class="text-xs text-neonBlue/70 font-orbitron">过去 1 天</span>
+          <select id="display-format" class="w-36 px-3 py-2 bg-darkCard border border-neonBlue/30 rounded-lg focus:outline-none focus:border-neonBlue text-white font-orbitron text-sm">
+            <option value="trend">趋势图</option>
+            <option value="table">表格</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+        <div class="flex gap-2 mt-2 sm:mt-0">
+          <button id="agent-trend-btn" title="Query Trend" class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonBlue transition flex items-center gap-1.5">
+            <i class="fa fa-line-chart text-neonBlue"></i> <span class="btn-label">趋势</span>
+          </button>
+          <button id="agent-analyze-btn" title="Analyze Data" class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonGreen transition flex items-center gap-1.5" style="border-color: rgba(57, 255, 20, 0.3);">
+            <i class="fa fa-bar-chart text-neonGreen"></i> <span class="btn-label">分析</span>
+          </button>
+          <button id="agent-query-btn" title="Query Tag" class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonBlue transition flex items-center gap-1.5">
+            <i class="fa fa-search text-neonBlue"></i> <span class="btn-label">查询</span>
+          </button>
+        </div>
+        <div class="flex gap-2 mt-2 sm:mt-0">
+          <button id="clearBtn" title="清空" class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonBlue transition">
+            <i class="fa fa-trash text-neonBlue"></i>
+          </button>
+          <button id="backBtn" title="返回首页" onclick="location.href='/';" class="glass-neon px-3 py-1.5 rounded text-sm hover:border-neonBlue transition">
+            <i class="fa fa-arrow-left text-neonBlue"></i> <span class="btn-label">首页</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <section id="messages" class="messages p-4 h-[60vh] overflow-y-auto" role="log" aria-live="polite"></section>
+
+    <!-- Time range modal -->
+    <div id="range-modal" class="fixed inset-0 bg-darkBg/90 z-50 flex items-center justify-center hidden">
+      <div class="glass-neon rounded-xl p-6 w-full max-w-md border border-neonBlue/50">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-lg font-orbitron font-semibold text-neonBlue text-shadow-neon">选择时间范围</h3>
+          <button id="range-close" class="text-neonBlue/70 hover:text-neonBlue transition">
+            <i class="fa fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="space-y-5">
+          <div>
+            <label class="block text-sm font-orbitron text-neonBlue mb-2">预设范围:</label>
+            <div class="flex gap-3 flex-wrap">
+              <button class="range-preset px-3 py-1.5 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron hover:border-neonBlue transition" data-hours="1">1小时</button>
+              <button class="range-preset px-3 py-1.5 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron hover:border-neonBlue transition" data-hours="3">3小时</button>
+              <button class="range-preset px-3 py-1.5 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron hover:border-neonBlue transition" data-hours="6">6小时</button>
+              <button class="range-preset px-3 py-1.5 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron hover:border-neonBlue transition" data-hours="24">1天</button>
+              <button class="range-preset px-3 py-1.5 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron hover:border-neonBlue transition" data-hours="72">3天</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-orbitron text-neonBlue mb-2">滑块选择小时数:</label>
+            <input id="range-slider" type="range" min="1" max="168" value="24" class="w-full">
+            <div class="font-orbitron text-sm text-neonBlue mt-2">过去 <span id="range-hours">24</span> 小时</div>
+          </div>
+          <div class="border-t border-neonBlue/30 pt-4">
+            <label class="block text-sm font-orbitron text-neonBlue mb-2">或自定义:</label>
+            <div class="flex gap-3">
+              <input id="range-custom-start" type="datetime-local" class="flex-1 px-3 py-2 bg-darkCard border border-neonBlue/30 rounded-lg focus:outline-none focus:border-neonBlue text-white font-orbitron text-sm">
+              <input id="range-custom-end" type="datetime-local" class="flex-1 px-3 py-2 bg-darkCard border border-neonBlue/30 rounded-lg focus:outline-none focus:border-neonBlue text-white font-orbitron text-sm">
+            </div>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-3">
+          <button id="range-apply" class="px-4 py-2 bg-neonBlue text-darkBg rounded text-sm font-orbitron hover:bg-neonBlue/80 transition">
+            应用
+          </button>
+          <button id="range-cancel" class="px-4 py-2 bg-darkCard border border-neonBlue/30 rounded text-sm font-orbitron hover:border-neonBlue transition">
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <form id="composer" class="composer border-t border-neonBlue/30 p-3 flex gap-3" role="form" aria-label="发送消息">
+      <textarea id="input" rows="1" placeholder="输入消息，回车发送（Shift+Enter 换行）" 
+        class="flex-1 px-3 py-2 bg-darkCard border border-neonBlue/30 rounded-lg focus:outline-none focus:border-neonBlue text-white font-orbitron text-sm"></textarea>
+      <button type="button" id="sendBtn" class="px-4 py-2 bg-neonBlue text-darkBg rounded text-sm font-orbitron hover:bg-neonBlue/80 transition shrink-0">
+        发送
+      </button>
+    </form>
+  </main>
+
+<script>
+particlesJS('particles-js', {
+  particles: {
+    number: { value: 80, density: { enable: true, value_area: 800 } },
+    color: { value: '#00FFFF' },
+    shape: { type: 'circle' },
+    opacity: { value: 0.5, random: true },
+    size: { value: 3, random: true },
+    line_linked: { enable: true, distance: 150, color: '#00FFFF', opacity: 0.2, width: 1 },
+    move: { enable: true, speed: 1, direction: 'none', random: true, straight: false, out_mode: 'out', bounce: false }
+  },
+  interactivity: {
+    detect_on: 'canvas',
+    events: {
+      onhover: { enable: true, mode: 'grab' },
+      onclick: { enable: true, mode: 'push' },
+      resize: true
+    },
+    modes: {
+      grab: { distance: 140, line_linked: { opacity: 0.5 } },
+      push: { particles_nb: 4 }
+    }
+  },
+  retina_detect: true
+});
+
+(() => {
+  const messagesEl = document.getElementById('messages');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const agentIdInput = document.getElementById('agent-id-input');
+  const agentQueryBtn = document.getElementById('agent-query-btn');
+
+  function addMessage(content, who='bot') {
+    const el = document.createElement('div');
+    el.className = `msg ${who} rounded-lg p-3 my-2 max-w-[80%]`;
+    if (who === 'user') {
+      el.classList.add('bg-darkCard/80', 'border', 'border-neonGreen/30', 'ml-auto');
+    } else {
+      el.classList.add('bg-darkCard/80', 'border', 'border-neonBlue/30');
+    }
+    if (typeof content === 'string') {
+      el.textContent = content;
+    } else {
+      const pre = document.createElement('pre');
+      pre.className = 'text-xs overflow-auto max-h-64';
+      pre.textContent = JSON.stringify(content, null, 2);
+      el.appendChild(pre);
+    }
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  function addTyping() {
+    const el = document.createElement('div');
+    el.className = 'msg bot bg-darkCard/80 border border-neonBlue/30 rounded-lg p-3 my-2';
+    el.innerHTML = '<div class="flex gap-2"><span class="w-2 h-2 rounded-full bg-neonBlue animate-pulse"></span><span class="w-2 h-2 rounded-full bg-neonBlue animate-pulse" style="animation-delay: 0.2s"></span><span class="w-2 h-2 rounded-full bg-neonBlue animate-pulse" style="animation-delay: 0.4s"></span></div>';
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  async function askOllama(prompt) {
+    const botEl = addMessage('', 'bot');
+    const typingEl = addTyping();
+    try {
+      const payload = {
+        model: "gemma3:4b",
+        prompt: prompt,
+        max_tokens: 1024,
+        temperature: 0.2,
+        stream: true
+      };
+      const res = await fetch('/api/ollama/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>res.statusText);
+        throw new Error('HTTP ' + res.status + ' ' + txt);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      typingEl.remove();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const obj = JSON.parse(line);
+            const text = obj.response || obj.text || '';
+            if (text) {
+              botEl.textContent += text;
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+          } catch (e) {
+            botEl.textContent += line;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }
+        }
+      }
+      if (buffer.trim()) botEl.textContent += buffer;
+    } catch (err) {
+      typingEl.remove();
+      botEl.textContent = '抱歉，模型调用失败：' + (err.message || err);
+      console.error(err);
+    }
+  }
+
+  async function queryTagById(tagIds) {
+    // 支持单个或多个 tag ID
+    if (!tagIds) {
+      addMessage('请输入有效的 Tag ID', 'bot');
+      return;
+    }
+    
+    // 转换为数组
+    const ids = Array.isArray(tagIds) ? tagIds : [tagIds];
+    if (ids.length === 0) {
+      addMessage('请输入至少一个 Tag ID', 'bot');
+      return;
+    }
+
+    const botEl = addMessage('', 'bot');
+    const typingEl = addTyping();
+    
+    try {
+      // 并行查询所有 tag
+      const promises = ids.map(id => 
+        fetch(`/api/metris/tag/${encodeURIComponent(id)}`, { method: 'GET' })
+          .then(res => res.ok ? res.json() : Promise.reject(`HTTP ${res.status}`))
+          .then(data => ({ tagId: id, data: data.tag || data, error: data.error }))
+          .catch(err => ({ tagId: id, error: String(err) }))
+      );
+      
+      const results = await Promise.all(promises);
+      typingEl.remove();
+
+      if (ids.length === 1) {
+        // 单个 tag：显示详细信息
+        const result = results[0];
+        if (result.error) {
+          botEl.textContent = `错误: ${result.error}`;
+        } else {
+          const tag = result.data;
+          const pretty = [
+            `TagID: ${tag.tagID ?? tag.id ?? result.tagId}`,
+            `value: ${tag.value ?? ''}`,
+            `timestamp: ${tag.timestamp ?? ''}`,
+            `quality: ${tag.quality ?? ''}`
+          ].join('\n');
+          botEl.textContent = pretty;
+        }
+      } else {
+        // 多个 tag：显示表格
+        const tbl = document.createElement('div');
+        tbl.className = 'max-h-96 overflow-auto bg-darkBg/50 p-3 rounded-lg';
+        tbl.innerHTML = `<table class="w-full border-collapse font-orbitron text-sm">
+          <thead>
+            <tr class="border-b border-neonBlue/30 sticky top-0 bg-darkBg/80">
+              <th class="text-left p-2 text-neonBlue">TagID</th>
+              <th class="text-left p-2 text-neonBlue">value</th>
+              <th class="text-left p-2 text-neonBlue">timestamp</th>
+              <th class="text-left p-2 text-neonBlue">quality</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>`;
+        const tbody = tbl.querySelector('tbody');
+        
+        for (const result of results) {
+          const tr = document.createElement('tr');
+          tr.className = 'border-b border-neonBlue/10 hover:bg-neonBlue/5';
+          if (result.error) {
+            tr.innerHTML = `<td class="p-2 text-neonRed" colspan="4">Tag ${result.tagId}: ${result.error}</td>`;
+          } else {
+            const tag = result.data;
+            tr.innerHTML = `
+              <td class="p-2">${tag.tagID ?? tag.id ?? result.tagId}</td>
+              <td class="p-2">${tag.value ?? '-'}</td>
+              <td class="p-2 text-xs">${tag.timestamp ? tag.timestamp.substring(0, 19).replace('T', ' ') : '-'}</td>
+              <td class="p-2">${tag.quality ?? '-'}</td>
+            `;
+          }
+          tbody.appendChild(tr);
+        }
+        botEl.appendChild(tbl);
+      }
+    } catch (err) {
+      typingEl.remove();
+      botEl.textContent = '查询失败: ' + (err.message || err);
+      console.error(err);
+    }
+  }
+
+  async function queryTrendById(tagId, start, end, format='trend') {
+    const botEl = addMessage('', 'bot');
+    const typingEl = addTyping();
+    try {
+      const params = new URLSearchParams();
+      params.set('tag_id', String(tagId));
+      if (start) params.set('start', start);
+      if (end) params.set('end', end);
+      const res = await fetch(`/api/metris/trend?${params.toString()}`);
+      typingEl.remove();
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>res.statusText);
+        botEl.textContent = `查询失败: ${res.status} ${txt}`;
+        return null;
+      }
+      const data = await res.json();
+      const trendData = data.trend;
+      
+      if (!trendData) {
+        botEl.textContent = '无趋势数据';
+        return null;
+      }
+
+      // 处理返回格式：{ tagId: [...] } 或 [...]
+      let tagData = null;
+      
+      if (typeof trendData === 'object' && !Array.isArray(trendData)) {
+        // 字典格式，需要提取具体标签的数据
+        tagData = trendData[tagId];
+        if (!tagData) {
+          botEl.textContent = `标签 ${tagId} 无数据`;
+          return null;
+        }
+        
+        if (!Array.isArray(tagData)) {
+          if (tagData.error) {
+            botEl.textContent = `标签 ${tagId} 错误: ${tagData.error}`;
+            return null;
+          }
+          botEl.textContent = '数据格式不正确';
+          return null;
+        }
+      } else if (Array.isArray(trendData)) {
+        // 直接数组格式
+        tagData = trendData;
+        if (tagData.length === 0) {
+          botEl.textContent = '无趋势数据';
+          return null;
+        }
+      } else {
+        botEl.textContent = '数据格式不支持';
+        return null;
+      }
+
+      if (format === 'json') {
+        botEl.textContent = JSON.stringify(tagData, null, 2);
+        return tagData;
+      }
+      
+      if (format === 'table') {
+        const tbl = document.createElement('div');
+        tbl.className = 'max-h-64 overflow-auto bg-darkBg/50 p-2 rounded-lg';
+        tbl.innerHTML = `<table class="w-full border-collapse font-orbitron text-sm">
+          <thead><tr class="border-b border-neonBlue/30"><th class="text-left p-2 text-neonBlue">time</th><th class="text-left p-2 text-neonBlue">value</th></tr></thead>
+          <tbody></tbody></table>`;
+        const tbody = tbl.querySelector('tbody');
+        for (const p of tagData) {
+          const tr = document.createElement('tr');
+          tr.className = 'border-b border-neonBlue/10 hover:bg-neonBlue/5';
+          tr.innerHTML = `<td class="p-2">${p.x||p.time||p.timestamp||''}</td><td class="p-2">${p.y||p.value||p.v||''}</td>`;
+          tbody.appendChild(tr);
+        }
+        botEl.appendChild(tbl);
+        return tagData;
+      }
+
+      // 创建趋势图
+      const canvas = document.createElement('canvas');
+      canvas.className = 'max-h-64';
+      botEl.appendChild(canvas);
+      
+      // 转换数据点，支持多种时间格式
+      const dataPoints = tagData.map(p => {
+        let x = NaN;
+        if (p && (p.t !== undefined && p.t !== null)) {
+          const tnum = Number(p.t);
+          const s = String(Math.trunc(tnum));
+          x = (s.length <= 10) ? tnum * 1000 : tnum;
+        } else {
+          const cand = p.x || p.time || p.timestamp || '';
+          if (cand) {
+            const d = new Date(cand);
+            if (!isNaN(d)) x = d.getTime();
+            else {
+              const n = Number(cand);
+              if (!isNaN(n)) x = n;
+            }
+          }
+        }
+        return { x: x, y: Number(p.y ?? p.value ?? p.v ?? 0) };
+      }).filter(pt => !isNaN(pt.x));
+
+      // 计算x轴范围，避免左侧空白
+      let xMin = null, xMax = null;
+      if (dataPoints.length > 0) {
+        xMin = Math.min(...dataPoints.map(p => p.x));
+        xMax = Math.max(...dataPoints.map(p => p.x));
+        const padding = (xMax - xMin) * 0.02;
+        xMin -= padding;
+        xMax += padding;
+      }
+
+      new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: `Tag ${tagId}`,
+            data: dataPoints,
+            borderColor: '#00FFFF',
+            backgroundColor: 'rgba(0,255,255,0.1)',
+            fill: true,
+            tension: 0.2,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: true, position: 'top', align: 'end' },
+            tooltip: {
+              callbacks: {
+                title: function(items) {
+                  if (!items || items.length === 0) return '';
+                  try {
+                    const x = items[0].parsed.x;
+                    const d = new Date(Number(x));
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const date = String(d.getDate()).padStart(2, '0');
+                    const hour = String(d.getHours()).padStart(2, '0');
+                    const min = String(d.getMinutes()).padStart(2, '0');
+                    const sec = String(d.getSeconds()).padStart(2, '0');
+                    return `${month}-${date} ${hour}:${min}:${sec}`;
+                  } catch(e) { return ''; }
+                },
+                label: function(item) {
+                  return item.dataset.label + ': ' + item.parsed.y.toFixed(2);
+                }
+              }
+            }
+          },
+          scales: {
+            x: { 
+              type: 'linear',
+              min: xMin,
+              max: xMax,
+              title: { display: true, text: '时间' },
+              ticks: {
+                maxTicksLimit: 8,
+                callback: function(value) {
+                  try {
+                    const d = new Date(Number(value));
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const date = String(d.getDate()).padStart(2, '0');
+                    const hour = String(d.getHours()).padStart(2, '0');
+                    const min = String(d.getMinutes()).padStart(2, '0');
+                    return `${month}-${date}\n${hour}:${min}`;
+                  } catch(e) { return ''; }
+                }
+              }
+            },
+            y: { beginAtZero: false }
+          }
+        }
+      });
+      return tagData;
+    } catch (err) {
+      typingEl.remove();
+      botEl.textContent = '查询失败: ' + (err.message || err);
+      console.error(err);
+      return null;
+    }
+  }
+
+  async function analyzeTagData(tagId, start, end) {
+    const botEl = addMessage('', 'bot');
+    const typingEl = addTyping();
+    
+    // 创建加载提示
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'msg bot bg-darkCard/80 border border-neonBlue/30 rounded-lg p-3 my-2 flex items-center gap-2';
+    loadingEl.innerHTML = `
+      <div class="flex gap-1">
+        <span class="w-2 h-2 rounded-full bg-neonBlue animate-bounce"></span>
+        <span class="w-2 h-2 rounded-full bg-neonBlue animate-bounce" style="animation-delay: 0.1s"></span>
+        <span class="w-2 h-2 rounded-full bg-neonBlue animate-bounce" style="animation-delay: 0.2s"></span>
+      </div>
+      <span class="text-neonBlue font-orbitron text-sm">正在分析...</span>
+    `;
+    messagesEl.appendChild(loadingEl);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    
+    try {
+      const params = new URLSearchParams();
+      params.set('tag_id', String(tagId));
+      if (start) params.set('start', start);
+      if (end) params.set('end', end);
+      const resTrend = await fetch(`/api/metris/trend?${params.toString()}`);
+      if (!resTrend.ok) {
+        typingEl.remove();
+        loadingEl.remove();
+        const txt = await resTrend.text().catch(()=>resTrend.statusText);
+        botEl.textContent = `提交分析失败: ${resTrend.status} ${txt}`;
+        return;
+      }
+      const trendData = await resTrend.json();
+      const trend = trendData.trend || trendData;
+      if (!trend || (Array.isArray(trend) && trend.length === 0)) {
+        typingEl.remove();
+        loadingEl.remove();
+        botEl.textContent = '无数据可用于分析';
+        return;
+      }
+      const body = { tag_id: tagId, data: trend };
+      const res = await fetch('/api/metris/analyze', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      });
+      typingEl.remove();
+      if (!res.ok) {
+        loadingEl.remove();
+        const txt = await res.text().catch(()=>res.statusText);
+        botEl.textContent = `提交分析失败: ${res.status} ${txt}`;
+        return;
+      }
+      const data = await res.json();
+      const jobId = data.job_id || 'unknown';
+      botEl.innerHTML = `<span class="text-neonGreen">✓ 分析已提交</span><br><span class="text-xs text-neonBlue/70">job_id: ${jobId}</span>`;
+      
+      // 轮询查询分析结果
+      let attempts = 0;
+      const maxAttempts = 120; // 最多等待2分钟（每秒查询一次）
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch(`/api/metris/analysis/${jobId}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            if (statusData.status === 'done' && statusData.result) {
+              clearInterval(pollInterval);
+              loadingEl.remove();
+              // 显示分析结果
+              const resultEl = document.createElement('div');
+              resultEl.className = 'msg bot bg-darkCard/80 border border-neonGreen/30 rounded-lg p-3 my-2';
+              const resultText = typeof statusData.result === 'string' 
+                ? statusData.result 
+                : JSON.stringify(statusData.result, null, 2);
+              resultEl.innerHTML = `<div class="text-xs whitespace-pre-wrap break-words font-mono text-neonGreen/90">${resultText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+              messagesEl.appendChild(resultEl);
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('查询分析结果失败:', err);
+        }
+        
+        // 超时处理
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          loadingEl.remove();
+          const timeoutEl = document.createElement('div');
+          timeoutEl.className = 'msg bot bg-darkCard/80 border border-neonYellow/30 rounded-lg p-3 my-2';
+          timeoutEl.innerHTML = `<span class="text-neonYellow">⚠ 分析超时，请稍后查询结果</span><br><span class="text-xs text-neonBlue/70">job_id: ${jobId}</span>`;
+          messagesEl.appendChild(timeoutEl);
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+      }, 1000); // 每秒查询一次
+      
+    } catch (err) {
+      typingEl.remove();
+      loadingEl.remove();
+      botEl.textContent = '提交分析失败: ' + (err.message || err);
+      console.error(err);
+    }
+  }
+
+  async function queryTrends(tagIds, start, end, format='trend') {
+    const botEl = addMessage('', 'bot');
+    const typingEl = addTyping();
+    try {
+      const params = new URLSearchParams();
+      params.set('tag_ids', tagIds.join(','));
+      if (start) params.set('start', start);
+      if (end) params.set('end', end);
+      const res = await fetch(`/api/metris/trend?${params.toString()}`);
+      typingEl.remove();
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>res.statusText);
+        botEl.textContent = `查询失败: ${res.status} ${txt}`;
+        return null;
+      }
+      const data = await res.json();
+      const trends = data.trend || {};
+      if (format === 'json') {
+        botEl.textContent = JSON.stringify(trends, null, 2);
+        return trends;
+      }
+
+      // 处理表格格式 - 序号 | 时间 | ID1 | ID2 | ... (按时间轴)
+      if (format === 'table') {
+        const tbl = document.createElement('div');
+        tbl.className = 'max-h-96 overflow-auto bg-darkBg/50 p-2 rounded-lg';
+        
+        // 辅助函数：提取时间字符串
+        const extractTimeStr = (p) => {
+          if (p && (p.t !== undefined && p.t !== null)) {
+            const tnum = Number(p.t);
+            const s = String(Math.trunc(tnum));
+            const ts = (s.length <= 10) ? tnum * 1000 : tnum;
+            const d = new Date(ts);
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const date = String(d.getDate()).padStart(2, '0');
+            const hour = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            const sec = String(d.getSeconds()).padStart(2, '0');
+            return `${month}-${date} ${hour}:${min}:${sec}`;
+          }
+          const cand = p.x || p.time || p.timestamp || '';
+          if (cand) {
+            try {
+              const d = new Date(cand);
+              if (!isNaN(d)) {
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const date = String(d.getDate()).padStart(2, '0');
+                const hour = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                const sec = String(d.getSeconds()).padStart(2, '0');
+                return `${month}-${date} ${hour}:${min}:${sec}`;
+              }
+            } catch (e) {}
+          }
+          return cand || '未知时间';
+        };
+
+        // 辅助函数：提取数值并格式化
+        const extractValue = (p) => {
+          try {
+            const val = p.y ?? p.value ?? p.v ?? 0;
+            const num = Number(val);
+            return isNaN(num) ? '-' : num.toFixed(2);
+          } catch (e) {
+            return '-';
+          }
+        };
+        
+        // 构建时间轴-值映射: { timeStr -> { tagId -> value } }
+        const timeValueMap = new Map();
+        const timeOrder = []; // 保持时间顺序
+        
+        for (const tid of tagIds) {
+          const series = trends[tid];
+          // 处理三种数据格式：数组、对象、或对象中的某个属性
+          let data = [];
+          if (Array.isArray(series)) {
+            data = series;
+          } else if (series && typeof series === 'object' && series.error) {
+            // 跳过有错误的数据
+            continue;
+          } else if (series && typeof series === 'object') {
+            // 可能是嵌套结构
+            data = Object.values(series).find(v => Array.isArray(v)) || [];
+          }
+          
+          for (const p of data) {
+            if (!p) continue;
+            
+            const timeStr = extractTimeStr(p);
+            const value = extractValue(p);
+            
+            if (!timeValueMap.has(timeStr)) {
+              timeValueMap.set(timeStr, {});
+              timeOrder.push(timeStr);
+            }
+            timeValueMap.get(timeStr)[tid] = value;
+          }
+        }
+        
+        if (timeOrder.length === 0) {
+          botEl.textContent = '无有效数据可显示';
+          return trends;
+        }
+        
+        // 构建表格：序号 | 时间 | ID1 | ID2 | ...
+        const tableHtml = [];
+        // 根据列数判断是否需要固定宽度：少于5列则撑满，多列则自然宽度+滚动
+        const colCount = tagIds.length + 2; // 序号 + 时间 + ID列数
+        const tableWidth = colCount < 5 ? '100%' : 'auto';
+        tableHtml.push(`<table class="border-collapse font-orbitron text-xs" style="white-space: nowrap; width: ${tableWidth}; min-width: 100%;">
+          <thead><tr class="border-b border-neonBlue/30 sticky top-0 bg-darkCard">
+            <th class="border-r border-neonBlue/20 p-2 text-neonBlue">序号</th>
+            <th class="border-r border-neonBlue/20 p-2 text-neonBlue">时间</th>`);
+        
+        // 添加每个ID的列头
+        for (let i = 0; i < tagIds.length; i++) {
+          const isLast = i === tagIds.length - 1;
+          tableHtml.push(`<th class="${!isLast ? 'border-r border-neonBlue/20' : ''} p-2 text-neonBlue">ID${tagIds[i]}</th>`);
+        }
+        tableHtml.push(`</tr></thead><tbody>`);
+        
+        // 按时间顺序添加行
+        timeOrder.forEach((timeStr, idx) => {
+          const valueMap = timeValueMap.get(timeStr);
+          tableHtml.push(`<tr class="border-b border-neonBlue/10 hover:bg-neonBlue/5">`);
+          tableHtml.push(`<td class="border-r border-neonBlue/20 p-2 text-neonGreen">${idx + 1}</td>`);
+          tableHtml.push(`<td class="border-r border-neonBlue/20 p-2 text-neonBlue">${timeStr}</td>`);
+          
+          // 添加每个ID对应的值
+          for (let i = 0; i < tagIds.length; i++) {
+            const tid = tagIds[i];
+            const val = valueMap[tid] ?? '-';
+            const isLast = i === tagIds.length - 1;
+            tableHtml.push(`<td class="${!isLast ? 'border-r border-neonBlue/20' : ''} p-2 text-neonPurple text-right">${val}</td>`);
+          }
+          tableHtml.push(`</tr>`);
+        });
+        
+        tableHtml.push(`</tbody></table>`);
+        tbl.innerHTML = tableHtml.join('');
+        botEl.appendChild(tbl);
+        return trends;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'max-h-64';
+      botEl.appendChild(canvas);
+      const datasets = tagIds.map((tid, i) => {
+        const series = trends[tid] || [];
+        let pts = [];
+        for (const p of series) {
+          let x = NaN;
+          if (p && (p.t !== undefined && p.t !== null)) {
+            const tnum = Number(p.t);
+            const s = String(Math.trunc(tnum));
+            x = (s.length <= 10) ? tnum * 1000 : tnum;
+          } else {
+            const cand = p.x || p.time || p.timestamp || '';
+            if (cand) {
+              const d = new Date(cand);
+              if (!isNaN(d)) x = d.getTime();
+              else {
+                const n = Number(cand);
+                if (!isNaN(n)) x = n;
+              }
+            }
+          }
+          if (!isNaN(x)) {
+            pts.push({ x: x, y: Number(p.y ?? p.value ?? p.v ?? 0) });
+          }
+        }
+        return { 
+          label: `Tag ${tid}`, 
+          data: pts, 
+          borderColor: ['#00FFFF','#9D00FF','#FF00FF','#39FF14','#FF3131'][i%5], 
+          tension: 0.2,
+          pointRadius: 2
+        };
+      });
+      
+      // 计算x轴范围
+      let allPoints = [];
+      datasets.forEach(ds => {
+        if (ds.data && ds.data.length > 0) {
+          allPoints.push(...ds.data.map(p => p.x));
+        }
+      });
+      let xMin = null, xMax = null;
+      if (allPoints.length > 0) {
+        xMin = Math.min(...allPoints);
+        xMax = Math.max(...allPoints);
+        const padding = (xMax - xMin) * 0.02;
+        xMin -= padding;
+        xMax += padding;
+      }
+
+      new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { datasets },
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { 
+            legend: { display: true, position: 'top', align: 'end' },
+            tooltip: {
+              callbacks: {
+                title: function(items) {
+                  if (!items || items.length === 0) return '';
+                  try {
+                    const x = items[0].parsed.x;
+                    const d = new Date(Number(x));
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const date = String(d.getDate()).padStart(2, '0');
+                    const hour = String(d.getHours()).padStart(2, '0');
+                    const min = String(d.getMinutes()).padStart(2, '0');
+                    const sec = String(d.getSeconds()).padStart(2, '0');
+                    return `${month}-${date} ${hour}:${min}:${sec}`;
+                  } catch(e) { return ''; }
+                },
+                label: function(item) {
+                  return item.dataset.label + ': ' + item.parsed.y.toFixed(2);
+                }
+              }
+            }
+          },
+          scales: { 
+            x: { 
+              type: 'linear',
+              min: xMin,
+              max: xMax,
+              title: { display: true, text: '时间' },
+              ticks: {
+                maxTicksLimit: 8,
+                callback: function(value) {
+                  try {
+                    const d = new Date(Number(value));
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const date = String(d.getDate()).padStart(2, '0');
+                    const hour = String(d.getHours()).padStart(2, '0');
+                    const min = String(d.getMinutes()).padStart(2, '0');
+                    return `${month}-${date}\n${hour}:${min}`;
+                  } catch(e) { return ''; }
+                }
+              }
+            }, 
+            y: { beginAtZero: false } 
+          } 
+        }
+      });
+      return trends;
+    } catch (err) {
+      typingEl.remove();
+      botEl.textContent = '查询失败: ' + (err.message || err);
+      console.error(err);
+      return null;
+    }
+  }
+
+  function sendQuestion() {
+    const txt = input.value.trim();
+    if (!txt) return;
+    addMessage(txt, 'user');
+    input.value = '';
+    askOllama(txt);
+  }
+
+  const rangeModal = document.getElementById('range-modal');
+  const rangeBtn = document.getElementById('agent-range-btn');
+  const rangeClose = document.getElementById('range-close');
+  const rangeCancel = document.getElementById('range-cancel');
+  const rangeApply = document.getElementById('range-apply');
+  const rangeSlider = document.getElementById('range-slider');
+  const rangeHours = document.getElementById('range-hours');
+  const rangeLabel = document.getElementById('agent-range-label');
+  const hiddenStart = document.getElementById('agent-start');
+  const hiddenEnd = document.getElementById('agent-end');
+  const customStart = document.getElementById('range-custom-start');
+  const customEnd = document.getElementById('range-custom-end');
+
+  function openRangeModal() {
+    rangeModal.style.display = 'flex';
+    rangeSlider.value = 24;
+    rangeHours.textContent = rangeSlider.value;
+  }
+  function closeRangeModal() { rangeModal.style.display = 'none'; }
+
+  rangeBtn.addEventListener('click', openRangeModal);
+  rangeClose.addEventListener('click', closeRangeModal);
+  rangeCancel.addEventListener('click', closeRangeModal);
+  rangeSlider.addEventListener('input', () => { rangeHours.textContent = rangeSlider.value; });
+  document.querySelectorAll('.range-preset').forEach(b => {
+    b.addEventListener('click', e => {
+      const h = Number(e.target.dataset.hours || 24);
+      rangeSlider.value = h;
+      rangeHours.textContent = h;
+    });
+  });
+  rangeApply.addEventListener('click', () => {
+    const now = new Date();
+    let startIso, endIso;
+    if (customStart.value && customEnd.value) {
+      startIso = new Date(customStart.value).toISOString();
+      endIso = new Date(customEnd.value).toISOString();
+      rangeLabel.textContent = customStart.value + ' → ' + customEnd.value;
+    } else {
+      const hours = Number(rangeSlider.value || 24);
+      const start = new Date(now.getTime() - hours * 3600 * 1000);
+      startIso = start.toISOString();
+      endIso = now.toISOString();
+      rangeLabel.textContent = `过去 ${hours} 小时`;
+    }
+    hiddenStart.value = startIso;
+    hiddenEnd.value = endIso;
+    closeRangeModal();
+  });
+
+  sendBtn.addEventListener('click', sendQuestion);
+  clearBtn.addEventListener('click', () => {
+    messagesEl.innerHTML = '';
+    addMessage('对话已清空。', 'bot');
+  });
+  agentQueryBtn.addEventListener('click', () => {
+    const raw = agentIdInput.value || '';
+    const ids = raw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    if (ids.length === 0) { addMessage('请输入至少一个 Tag ID', 'bot'); return; }
+    addMessage(`查询 Tag ID: ${ids.join(',')}`, 'user');
+    queryTagById(ids.length === 1 ? ids[0] : ids);
+  });
+  document.getElementById('agent-trend-btn').addEventListener('click', () => {
+    const raw = agentIdInput.value || '';
+    const ids = raw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    if (ids.length === 0) { addMessage('请输入至少一个 Tag ID', 'bot'); return; }
+    const start = hiddenStart.value;
+    const end = hiddenEnd.value;
+    const format = document.getElementById('display-format').value;
+    addMessage(`获取 Tag ${ids.join(',')} 的趋势（${format}）`, 'user');
+    if (ids.length === 1) queryTrendById(ids[0], start, end, format);
+    else queryTrends(ids, start, end, format);
+  });
+  document.getElementById('agent-analyze-btn').addEventListener('click', () => {
+    const id = parseInt(agentIdInput.value, 10);
+    if (isNaN(id)) { addMessage('请输入有效的整数 Tag ID', 'bot'); return; }
+    const start = hiddenStart.value;
+    const end = hiddenEnd.value;
+    addMessage(`分析 Tag ${id} 数据`, 'user');
+    analyzeTagData(id, start, end);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuestion(); }
+  });
+
+  addMessage('你好，我是 Yiting·AI —— 已连接本地模型。快速查询请在上方输入 ID 并点击 查询。', 'bot');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Yiting·AI（测试RAG + 本地）</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg1:#061226;--neon-1:#2ff7ff;--neon-2:#8a6cff}
+    body{margin:0;background:linear-gradient(180deg,var(--bg1),#021022);font-family:Inter;color:#eafcff;display:flex;align-items:center;justify-content:center;height:100vh}
+    .card{width:900px;height:80vh;border-radius:12px;background:rgba(255,255,255,0.02);display:flex;flex-direction:column;overflow:hidden}
+    .header{padding:12px;display:flex;justify-content:space-between;align-items:center}
+    .messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+    .composer{display:flex;padding:12px;border-top:1px solid rgba(255,255,255,0.02);gap:8px}
+    textarea{flex:1;padding:10px;border-radius:8px;background:rgba(0,0,0,0.35);color:#eafcff;border:1px solid rgba(255,255,255,0.04)}
+    .btn{padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+    .btn-primary{background:linear-gradient(90deg,var(--neon-1),var(--neon-2));color:#021022}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#9af0ff}
+    .card-title{font-weight:800;color:#9af0ff}
+    .match-card{background:rgba(2,8,20,0.6);border:1px solid rgba(47,247,255,0.08);padding:10px;border-radius:8px}
+    .agent-answer{background:linear-gradient(90deg, rgba(58,255,200,0.06), rgba(138,108,255,0.04)); padding:12px;border-left:4px solid rgba(138,108,255,0.18); border-radius:8px}
+    .toolbar{display:flex;gap:8px}
+    .small{font-size:12px;color:rgba(255,255,255,0.7)}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="card-title">Yiting·AI — RAG + Ollama</div>
+      <div class="toolbar">
+        <button id="upload-btn" class="btn btn-ghost">上传知识文档 (RAG)</button>
+        <button id="refresh-indices" class="btn btn-ghost">刷新索引列表</button>
+        <select id="index-select" class="small"></select>
+        <button id="rag-query-btn" class="btn btn-primary">RAG 查询并生成回答</button>
+      </div>
+    </div>
+
+    <div id="messages" class="messages" role="log" aria-live="polite"></div>
+
+    <div class="composer">
+      <textarea id="input" rows="2" placeholder="直接聊天或输入问题并回车发送（Shift+Enter 换行）"></textarea>
+      <button id="sendBtn" class="btn btn-primary">发送</button>
+    </div>
+  </div>
+
+  <!-- hidden file input for upload -->
+  <input id="file-input" type="file" multiple style="display:none" />
+
+<script>
+(async () => {
+  const messagesEl = document.getElementById('messages');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const uploadBtn = document.getElementById('upload-btn');
+  const fileInput = document.getElementById('file-input');
+  const indexSelect = document.getElementById('index-select');
+  const refreshBtn = document.getElementById('refresh-indices');
+  const ragQueryBtn = document.getElementById('rag-query-btn');
+
+  function addMessage(text, cls='bot') {
+    const el = document.createElement('div');
+    el.className = cls === 'bot' ? 'agent-answer' : 'match-card';
+    el.textContent = text;
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  function addMatchCard(obj) {
+    const card = document.createElement('div');
+    card.className = 'match-card';
+    card.innerHTML = `<div style="font-weight:700;color:#9af0ff">片段</div>
+      <div style="margin-top:8px;color:#eafcff">${obj.text}</div>`;
+    messagesEl.appendChild(card);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // Chat (normal) — stream from Ollama proxy
+  async function askOllama(prompt) {
+    addMessage("用户: " + prompt, 'user');
+    const combined = `User: ${prompt}\nAssistant:`;
+    const payload = { model: "gemma3:4b", prompt: combined, max_tokens: 1024, temperature: 0.2, stream: true };
+    const res = await fetch('/api/ollama/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!res.ok) {
+      const t = await res.text().catch(()=>res.statusText);
+      addMessage('模型调用失败: ' + t);
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const botEl = document.createElement('div'); botEl.className='agent-answer'; botEl.textContent=''; messagesEl.appendChild(botEl);
+    while(true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream:true});
+      const lines = buffer.split('\n'); buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const obj = JSON.parse(line);
+          const text = obj.response || obj.text || obj.token || '';
+          if (text) { botEl.textContent += text; messagesEl.scrollTop = messagesEl.scrollHeight; }
+        } catch (e) {
+          botEl.textContent += line; messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+      }
+    }
+    if (buffer.trim()) {
+      try { const obj = JSON.parse(buffer); botEl.textContent += obj.response || obj.text || ''; } catch(e){ botEl.textContent += buffer; }
+    }
+  }
+
+  sendBtn.addEventListener('click', async ()=> { const t = input.value.trim(); if (!t) return; input.value=''; await askOllama(t); });
+  input.addEventListener('keydown', (e)=> { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
+
+  // Upload RAG
+  uploadBtn.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', async (e)=>{
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const form = new FormData();
+    files.forEach(f => form.append('files', f));
+    form.append('name', files[0].name);
+    addMessage('开始上传文档并构建索引（可能需要一些时间）');
+    try {
+      const res = await fetch('/api/rag/upload', { method:'POST', body: form });
+      const j = await res.json();
+      if (!res.ok) { addMessage('上传/构建失败: ' + (j.error || JSON.stringify(j))); return; }
+      addMessage('索引已创建：' + j.index_id);
+      await refreshIndices();
+    } catch (err) {
+      addMessage('上传失败: ' + err.message);
+    }
+  });
+
+  async function refreshIndices() {
+    const res = await fetch('/api/rag/list');
+    if (!res.ok) return;
+    const arr = await res.json();
+    indexSelect.innerHTML = '';
+    for (const it of arr) {
+      const opt = document.createElement('option');
+      opt.value = it.id;
+      opt.textContent = `${it.name} (${new Date(it.created_at*1000).toLocaleString()})`;
+      indexSelect.appendChild(opt);
+    }
+  }
+  refreshBtn.addEventListener('click', refreshIndices);
+  await refreshIndices();
+
+  // RAG query -> calls /api/rag/query and displays matches + model answer
+  ragQueryBtn.addEventListener('click', async ()=>{
+    const idx = indexSelect.value;
+    if (!idx) return alert('请先选择索引');
+    const question = prompt('请输入要查询的问题：');
+    if (!question) return;
+    addMessage('正在检索并生成回答...', 'bot');
+    try {
+      const res = await fetch('/api/rag/query', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ index_id: idx, question, top_k: 3 })
+      });
+      const j = await res.json();
+      if (!res.ok) { addMessage('RAG 查询失败: ' + (j.error||JSON.stringify(j))); return; }
+      // show matches
+      if (j.matches && j.matches.length) {
+        j.matches.forEach(m => addMatchCard(m));
+      }
+      // show agent_answer
+      if (j.agent_answer) {
+        const ans = document.createElement('div'); ans.className='agent-answer'; ans.textContent = j.agent_answer; messagesEl.appendChild(ans);
+      }
+    } catch (e) { addMessage('RAG 查询异常: ' + e.message); }
+  });
+
+  // initial welcome
+  addMessage('Neon·AI 在线：可以上传文档建立知识索引（RAG），并在对话中结合知识库生成答案。');
+})();
+</script>
+</body>
+</html>

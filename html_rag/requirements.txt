@@ -1,0 +1,10 @@
+flask
+requests
+python-dotenv
+PyPDF2
+sentence-transformers
+torch
+langchain-ollama
+langchain
+langchain-community
+docarray

@@ -1,0 +1,8 @@
+{
+  "meta": {
+    "tag": 5,
+    "started_at": "2026-01-05T06:59:06Z",
+    "error": "HTTPConnectionPool(host='127.0.0.1', port=11434): Read timed out. (read timeout=120)"
+  },
+  "input_sample": []
+}
